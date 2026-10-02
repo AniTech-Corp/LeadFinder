@@ -1,0 +1,237 @@
+<?php
+session_start();
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+    header("Location: login.php");
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMKM Lead Finder</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- RemixIcons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#1e3a8a',
+                        'primary-light': '#eff6ff',
+                        surface: '#f4f7fb',
+                        'text-main': '#334155',
+                        'text-muted': '#64748b',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- SheetJS for Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js" async></script>
+
+    <style>
+        body { background-color: #f4f7fb; color: #334155; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* Checkbox styling */
+        .cat-checkbox input[type="checkbox"] { display: none; }
+        .cat-checkbox.active { background-color: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+        .cat-checkbox.active .check-icon { display: inline-block; color: #3b82f6; }
+        .cat-checkbox .check-icon { display: none; }
+        
+        .table-checkbox { appearance: none; width: 16px; height: 16px; border: 1.5px solid #cbd5e1; border-radius: 4px; outline: none; cursor: pointer; position: relative; }
+        .table-checkbox:checked { background-color: #3b82f6; border-color: #3b82f6; }
+        .table-checkbox:checked::after { content: ''; position: absolute; left: 4.5px; top: 1px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden antialiased">
+
+    <!-- SIDEBAR -->
+    <aside class="w-[260px] bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-20 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div>
+            <!-- Logo -->
+            <div class="h-20 flex items-center px-8 gap-3">
+                <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center text-xl">
+                    <i class="ri-bar-chart-2-fill"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg text-primary leading-tight">UMKM</span>
+                    <span class="text-sm font-medium text-slate-500 leading-tight">Lead Finder</span>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="px-4 py-4 flex flex-col gap-1.5">
+                <a href="#" data-view="dashboard" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-light text-primary font-semibold transition-colors">
+                    <i class="ri-home-5-line text-lg"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" data-view="pencarian" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
+                    <i class="ri-search-line text-lg"></i>
+                    <span>Pencarian</span>
+                </a>
+                <a href="#" data-view="database" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
+                    <i class="ri-database-2-line text-lg"></i>
+                    <span>Database Tersimpan</span>
+                </a>
+            </nav>
+            
+            <!-- Section: Lead Cockpit -->
+            <div class="px-6 mt-4 mb-2">
+                <button type="button" id="cockpitToggle" class="w-full flex items-center justify-between text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest mb-2 px-2 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none">
+                    <span>Lead Cockpit</span>
+                    <i id="cockpitCaret" class="ri-arrow-down-s-line text-sm transition-transform duration-200"></i>
+                </button>
+                <div id="cockpitDropdown" class="flex flex-col gap-0.5">
+                    <a href="#" data-view="cockpit_prioritas" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-fire-line text-lg text-slate-400"></i> Prioritas</div>
+                        <span id="badge_prioritas" class="text-xs font-semibold text-slate-500">0</span>
+                    </a>
+                    <a href="#" data-view="cockpit_antrian" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 text-blue-600 font-medium transition-colors text-[13px] border-l-[3px] border-blue-600">
+                        <div class="flex items-center gap-3 -ml-[3px]"><i class="ri-grid-fill text-lg"></i> Antrian</div>
+                        <span id="badge_antrian" class="text-[10px] font-bold bg-blue-100/80 text-blue-600 px-2 py-0.5 rounded-full">0</span>
+                    </a>
+                    <a href="#" data-view="cockpit_telepon" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-phone-line text-lg text-slate-400"></i> Telepon lagi</div>
+                        <span id="badge_telepon" class="text-xs font-semibold text-slate-500">0</span>
+                    </a>
+                    <a href="#" data-view="cockpit_followup" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-chat-1-line text-lg text-slate-400"></i> Follow up</div>
+                        <span id="badge_followup" class="text-xs font-semibold text-slate-500">0</span>
+                    </a>
+                    <a href="#" data-view="cockpit_demo" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-bookmark-line text-lg text-slate-400"></i> Demo</div>
+                        <span id="badge_demo" class="text-xs font-semibold text-slate-500">0</span>
+                    </a>
+                    <a href="#" data-view="cockpit_cut" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-delete-bin-line text-lg text-slate-400"></i> Cut</div>
+                        <span id="badge_cut" class="text-xs font-semibold text-slate-500">0</span>
+                    </a>
+                </div>
+            </div>
+            
+            <nav class="px-4 py-2 flex flex-col mt-2">
+                <a href="#" data-view="pengaturan" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
+                    <i class="ri-settings-4-line text-lg"></i>
+                    <span>Pengaturan</span>
+                </a>
+            </nav>
+        </div>
+        
+        <!-- Sidebar Footer -->
+        <div class="p-8 text-center mt-auto">
+            <div class="w-full flex justify-center mb-4 text-blue-200">
+                <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 70H110V75H10V70Z" fill="#E2E8F0"/>
+                    <path d="M20 30L30 20H90L100 30V70H20V30Z" fill="#EFF6FF"/>
+                    <path d="M20 30L30 20H90L100 30" stroke="#94A3B8" stroke-width="2"/>
+                    <path d="M20 30H100" stroke="#94A3B8" stroke-width="2"/>
+                    <rect x="45" y="45" width="30" height="25" fill="#1E3A8A"/>
+                    <circle cx="25" cy="55" r="5" fill="#DBEAFE"/>
+                    <circle cx="95" cy="55" r="5" fill="#DBEAFE"/>
+                </svg>
+            </div>
+            <p class="text-[13px] text-slate-500 font-medium leading-relaxed">
+                UMKM yang berkembang,<br>bersama teknologi<br>yang tepat.
+            </p>
+        </div>
+    </aside>
+
+    <!-- MAIN AREA -->
+    <div class="flex-1 flex flex-col min-w-0 bg-surface">
+        
+        <!-- HEADER -->
+        <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
+            <div>
+                <h1 class="font-bold text-[22px] text-slate-800 tracking-tight">Selamat Datang!</h1>
+                <p class="text-[13px] text-slate-500 mt-1 font-medium">Temukan dan kelola prospek UMKM di Bekasi yang belum memiliki <strong class="text-slate-700">website</strong>.<br>Dapatkan data lengkap, termasuk kontak, media sosial, dan potensi bisnis.</p>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2 text-[13px] text-slate-500 font-medium">
+                    <i class="ri-calendar-event-line text-base text-slate-400"></i>
+                    <span id="currentDate">10 Oktober 2025</span>
+                </div>
+                <div class="flex items-center gap-2 text-[13px] text-slate-500 font-medium">
+                    <i class="ri-time-line text-base text-slate-400"></i>
+                    <span id="currentTime">14:32</span>
+                </div>
+                <div class="flex items-center gap-3 pl-6 border-l border-slate-200">
+                    <div class="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-[13px]">
+                        <?php echo strtoupper(substr($_SESSION['name'] ?? 'U', 0, 1)); ?>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-bold text-sm text-slate-700 leading-tight"><?php echo htmlspecialchars($_SESSION['name'] ?? 'Admin'); ?></span>
+                        <a href="#" id="logoutBtn" class="text-[11px] text-red-500 hover:underline font-semibold flex items-center gap-1 leading-tight mt-0.5"><i class="ri-logout-circle-r-line"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- CONTENT SCROLL AREA -->
+        <main id="router-view" class="flex-1 overflow-auto p-6"></main>
+    </div>
+
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Update Time & Date
+        function updateTime() {
+            const now = new Date();
+            const optionsDate = { day: 'numeric', month: 'long', year: 'numeric' };
+            document.getElementById('currentDate').innerText = now.toLocaleDateString('id-ID', optionsDate);
+            document.getElementById('currentTime').innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Copy template
+        function copyTemplate() {
+            const text = document.getElementById('waTemplate').innerText;
+            navigator.clipboard.writeText(text);
+            alert("Template berhasil disalin!");
+        }
+
+        // Toggle checkboxes/radios visually (using event delegation for dynamically loaded views)
+        document.body.addEventListener('change', function(e) {
+            if(e.target.closest('.cat-checkbox') && e.target.tagName === 'INPUT') {
+                const type = e.target.type;
+                if(type === 'radio') {
+                    // Remove active class from all labels in this radio group
+                    const name = e.target.name;
+                    document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+                        if(input.checked) {
+                            input.closest('label').classList.add('active');
+                        } else {
+                            input.closest('label').classList.remove('active');
+                        }
+                    });
+                } else if(type === 'checkbox') {
+                    const label = e.target.closest('label');
+                    if(e.target.checked) {
+                        label.classList.add('active');
+                    } else {
+                        label.classList.remove('active');
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

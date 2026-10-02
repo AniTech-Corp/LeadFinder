@@ -1,0 +1,211 @@
+<div class="flex flex-col gap-6 max-w-[1200px] mx-auto w-full pb-10">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-2">
+        <div>
+            <h2 class="font-bold text-2xl text-slate-800">Dashboard Ringkasan</h2>
+            <p class="text-slate-500 font-medium text-sm mt-1">Gambaran umum seluruh prospek dan performa per kategori.</p>
+        </div>
+        <div class="flex gap-3">
+            <button class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                <i class="ri-calendar-2-line"></i> Bulan Ini
+            </button>
+            <button class="px-4 py-2 bg-primary hover:bg-blue-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors">
+                <i class="ri-download-2-line"></i> Unduh Laporan
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN METRICS GRID -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+                <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl">
+                    <i class="ri-database-2-line"></i>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-3xl font-extrabold text-slate-800" id="dash_total">0</h3>
+                <p class="text-[13px] font-bold text-slate-500 mt-1">Total Prospek Tersimpan</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+                <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center text-xl">
+                    <i class="ri-phone-find-line"></i>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-3xl font-extrabold text-slate-800" id="dash_follow_up">0</h3>
+                <p class="text-[13px] font-bold text-slate-500 mt-1">Sedang Follow Up</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+                <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center text-xl">
+                    <i class="ri-presentation-line"></i>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-3xl font-extrabold text-slate-800" id="dash_demo">0</h3>
+                <p class="text-[13px] font-bold text-slate-500 mt-1">Jadwal Demo</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+                <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center text-xl">
+                    <i class="ri-shake-hands-line"></i>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-3xl font-extrabold text-slate-800" id="dash_closing">0</h3>
+                <p class="text-[13px] font-bold text-slate-500 mt-1">Berhasil Closing</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIDDLE SECTION -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- RINGKASAN KATEGORI -->
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="font-bold text-lg text-slate-800"><i class="ri-bar-chart-grouped-line text-primary mr-2"></i> Ringkasan Kategori UMKM</h3>
+                <button class="text-sm font-semibold text-blue-500 hover:text-blue-600">Lihat Detail</button>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <!-- Kuliner -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-restaurant-line"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Kuliner</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Kuliner">0</div>
+                    </div>
+                </div>
+                <!-- Fashion -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-shopping-bag-3-line"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Fashion</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Fashion">0</div>
+                    </div>
+                </div>
+                <!-- Kecantikan -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-sparkling-fill"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Kecantikan</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Kecantikan">0</div>
+                    </div>
+                </div>
+                <!-- Laundry -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-t-shirt-line"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Laundry</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Laundry">0</div>
+                    </div>
+                </div>
+                <!-- Toko Retail -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-store-3-line"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Toko Retail</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Toko Retail">0</div>
+                    </div>
+                </div>
+                <!-- Florist -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-plant-line"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Florist</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Florist">0</div>
+                    </div>
+                </div>
+                <!-- Catering -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-cup-line"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Catering</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Catering">0</div>
+                    </div>
+                </div>
+                <!-- Percetakan -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-printer-line"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Percetakan</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Percetakan">0</div>
+                    </div>
+                </div>
+                <!-- Lainnya -->
+                <div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="ri-more-fill"></i></div>
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Lainnya</div>
+                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Lainnya">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATISTIK PRIORITAS -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col">
+            <h3 class="font-bold text-lg text-slate-800 mb-6"><i class="ri-pie-chart-2-fill text-primary mr-2"></i> Distribusi Prioritas</h3>
+            
+            <div class="flex-1 flex flex-col justify-center gap-5">
+                <!-- Tinggi -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex items-center gap-2">
+                            <i class="ri-star-fill text-emerald-500"></i>
+                            <span class="text-[13px] font-bold text-slate-600">Prioritas Tinggi</span>
+                        </div>
+                        <span class="text-sm font-extrabold text-slate-800" id="dash_pri_tinggi">0</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2">
+                        <div class="bg-emerald-500 h-2 rounded-full transition-all duration-1000" id="dash_bar_tinggi" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Menengah -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex items-center gap-2">
+                            <i class="ri-star-half-line text-amber-500"></i>
+                            <span class="text-[13px] font-bold text-slate-600">Prioritas Menengah</span>
+                        </div>
+                        <span class="text-sm font-extrabold text-slate-800" id="dash_pri_menengah">0</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2">
+                        <div class="bg-amber-500 h-2 rounded-full transition-all duration-1000" id="dash_bar_menengah" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Rendah -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex items-center gap-2">
+                            <i class="ri-star-line text-slate-400"></i>
+                            <span class="text-[13px] font-bold text-slate-600">Prioritas Rendah</span>
+                        </div>
+                        <span class="text-sm font-extrabold text-slate-800" id="dash_pri_rendah">0</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2">
+                        <div class="bg-slate-400 h-2 rounded-full transition-all duration-1000" id="dash_bar_rendah" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-5 border-t border-slate-100">
+                <button class="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-[13px] font-semibold transition-colors border border-slate-200">
+                    Kelola Prioritas Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

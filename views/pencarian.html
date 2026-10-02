@@ -1,0 +1,239 @@
+<div class="flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto">
+                
+                <!-- LEFT MAIN COLUMN -->
+                <div class="flex-1 flex flex-col gap-6 min-w-0">
+                    
+                    <!-- SEARCH PANEL -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-lg">
+                                <i class="ri-search-2-line"></i>
+                            </div>
+                            <h2 class="font-bold text-lg text-slate-800">Mulai Pencarian Prospek</h2>
+                        </div>
+                        
+                        <div class="grid grid-cols-[1fr_auto] gap-4 mb-6 max-w-2xl">
+                            <!-- Kota/Area -->
+                            <div>
+                                <label class="block text-[13px] font-bold text-slate-700 mb-2">Kota / Area</label>
+                                <div class="relative">
+                                    <i class="ri-map-pin-line absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="cityInput" list="cityHistory" placeholder="Masukkan Kota/Area" autocomplete="off" class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-shadow">
+                                    <datalist id="cityHistory"></datalist>
+                                </div>
+                            </div>
+                            <!-- Button -->
+                            <div class="flex items-end">
+                                <button id="searchBtn" class="h-[42px] px-8 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors text-sm w-full">
+                                    <i class="ri-play-fill text-lg"></i> Mulai Pencarian
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Categories -->
+                        <div>
+                            <label class="block text-[13px] font-bold text-slate-700 mb-3">Kategori UMKM</label>
+                            <div class="flex flex-wrap gap-3 mb-6" id="categoryGrid">
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Kuliner"> <i class="ri-restaurant-line"></i> Kuliner <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Fashion"> <i class="ri-shopping-bag-3-line"></i> Fashion <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Kecantikan"> <i class="ri-sparkling-fill"></i> Kecantikan <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Laundry"> <i class="ri-t-shirt-line"></i> Laundry <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Toko Retail"> <i class="ri-store-3-line"></i> Toko Retail <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Florist"> <i class="ri-plant-line"></i> Florist <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Catering"> <i class="ri-cup-line"></i> Catering <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Percetakan"> <i class="ri-printer-line"></i> Percetakan <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Photobox"> <i class="ri-camera-3-line"></i> Photobox <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Jasa"> <i class="ri-tools-line"></i> Jasa <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <label class="cat-checkbox cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                    <input type="radio" name="kategori" value="Lainnya"> <i class="ri-more-fill"></i> Lainnya <i class="ri-check-line check-icon ml-1"></i>
+                                </label>
+                                <button class="px-4 py-2 border border-slate-200 border-dashed rounded-lg text-[13px] font-semibold text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-2">
+                                    <i class="ri-add-line"></i> Tambah Kategori
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Limit -->
+                        <div class="flex items-center gap-3">
+                            <span class="text-[13px] font-bold text-slate-700">Jumlah hasil per kategori</span>
+                            <div class="relative">
+                                <select class="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg pl-4 pr-10 py-1.5 focus:outline-none focus:border-blue-500">
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                </select>
+                                <i class="ri-arrow-down-s-line absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STATS ROW -->
+                    <div class="grid grid-cols-5 gap-4">
+                        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl mb-3"><i class="ri-store-2-line"></i></div>
+                            <div class="text-[13px] font-bold text-slate-600 mb-1">Total Prospek</div>
+                            <div class="text-3xl font-bold text-slate-800 mb-1" id="stat-total">0</div>
+                            <div class="text-[11px] text-slate-400 font-medium">UMKM tanpa website</div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center text-xl mb-3"><i class="ri-instagram-line"></i></div>
+                            <div class="text-[13px] font-bold text-slate-600 mb-1">Instagram Ditemukan</div>
+                            <div class="text-3xl font-bold text-slate-800 mb-1" id="stat-ig">0</div>
+                            <div class="text-[11px] text-slate-400 font-medium" id="stat-ig-desc">0% dari total</div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center text-xl mb-3"><i class="ri-star-fill"></i></div>
+                            <div class="text-[13px] font-bold text-slate-600 mb-1">Prioritas Tinggi</div>
+                            <div class="text-3xl font-bold text-emerald-600 mb-1" id="stat-high">0</div>
+                            <div class="text-[11px] text-slate-400 font-medium">Skor 70 - 100</div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center text-xl mb-3"><i class="ri-star-line"></i></div>
+                            <div class="text-[13px] font-bold text-slate-600 mb-1">Prioritas Menengah</div>
+                            <div class="text-3xl font-bold text-slate-800 mb-1" id="stat-mid">0</div>
+                            <div class="text-[11px] text-slate-400 font-medium">Skor 50 - 69</div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl mb-3"><i class="ri-star-line"></i></div>
+                            <div class="text-[13px] font-bold text-slate-600 mb-1">Prioritas Rendah</div>
+                            <div class="text-3xl font-bold text-slate-800 mb-1" id="stat-low">0</div>
+                            <div class="text-[11px] text-slate-400 font-medium">Skor 0 - 49</div>
+                        </div>
+                    </div>
+
+                    <!-- TABLE -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col flex-1 overflow-hidden min-h-[400px]">
+                        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                            <h3 class="font-bold text-lg text-slate-800">Daftar Prospek UMKM</h3>
+                            <div class="flex items-center gap-3">
+                                <div class="relative">
+                                    <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                    <input type="text" placeholder="Cari nama UMKM, kategori, atau lokasi..." class="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-[13px] font-medium focus:outline-none focus:border-blue-500 w-72 placeholder:text-slate-400">
+                                </div>
+                                <button class="px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="ri-filter-3-line"></i> Filter
+                                </button>
+                                <button id="exportBtn" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[13px] font-semibold flex items-center gap-2 transition-colors">
+                                    <i class="ri-file-download-line"></i> Export Excel
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto flex-1">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-white text-[11px] font-bold text-slate-500 border-b border-slate-200">
+                                        <th class="py-3 px-4 w-10"><input type="checkbox" class="table-checkbox"></th>
+                                        <th class="py-3 px-4 w-10 text-center">No</th>
+                                        <th class="py-3 px-4">Nama UMKM</th>
+                                        <th class="py-3 px-4">Kategori</th>
+                                        <th class="py-3 px-4">Kecamatan</th>
+                                        <th class="py-3 px-4">No. Telepon</th>
+                                        <th class="py-3 px-4">Instagram</th>
+                                        <th class="py-3 px-4">Website</th>
+                                        <th class="py-3 px-4">Rating</th>
+                                        <th class="py-3 px-4">Review</th>
+                                        <th class="py-3 px-4">Skor</th>
+                                        <th class="py-3 px-4">Prioritas</th>
+                                        <th class="py-3 px-4 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableBody" class="text-[13px] font-semibold text-slate-600 divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="12" class="p-12 text-center text-slate-400">Belum ada data. Silakan lakukan pencarian di area target Anda.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="p-4 border-t border-slate-100 flex items-center justify-between text-[13px] text-slate-500 font-medium">
+                            <span id="showingText">Menampilkan 0 hasil</span>
+                            <div class="flex items-center gap-1" id="paginationContainer">
+                                <!-- Pagination buttons will be rendered by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN (Sidebar) -->
+                <div class="w-[320px] flex-shrink-0 flex flex-col gap-6">
+                    
+                    <!-- TIPS -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 font-bold text-[15px] text-slate-800 mb-5">
+                            <i class="ri-lightbulb-flash-line text-slate-400 text-xl"></i> Tips Follow Up
+                        </div>
+                        <ul class="flex flex-col gap-4 text-[13px] text-slate-600 font-medium">
+                            <li class="flex gap-3 items-start"><i class="ri-check-line text-blue-500 text-lg leading-none mt-0.5"></i> Cek kembali akun Instagram untuk memastikan keaslian akun.</li>
+                            <li class="flex gap-3 items-start"><i class="ri-check-line text-blue-500 text-lg leading-none mt-0.5"></i> Sesuaikan penawaran dengan jenis usaha dan kebutuhan mereka.</li>
+                            <li class="flex gap-3 items-start"><i class="ri-check-line text-blue-500 text-lg leading-none mt-0.5"></i> Gunakan template WhatsApp yang sudah disediakan.</li>
+                            <li class="flex gap-3 items-start"><i class="ri-check-line text-blue-500 text-lg leading-none mt-0.5"></i> Prioritaskan prospek dengan skor tinggi terlebih dahulu.</li>
+                        </ul>
+                    </div>
+
+                    <!-- TEMPLATE WA -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 font-bold text-[15px] text-slate-800 mb-5">
+                            <i class="ri-whatsapp-line text-slate-400 text-xl"></i> Template WhatsApp
+                        </div>
+                        <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl text-[13px] text-slate-600 mb-4 whitespace-pre-wrap font-medium leading-relaxed" id="waTemplate">Halo, kami dari tim [Nama Perusahaan].
+
+Kami melihat usaha Anda berpotensi untuk memiliki website agar lebih mudah dikenal dan menjangkau lebih banyak pelanggan.
+
+Bolehkah kami memberikan informasi lebih lanjut mengenai layanan pembuatan website untuk UMKM?</div>
+                        <button onclick="copyTemplate()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors text-sm">
+                            <i class="ri-file-copy-line"></i> Salin Template
+                        </button>
+                    </div>
+
+                    <!-- RINGKASAN -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 font-bold text-[15px] text-slate-800 mb-5">
+                            <i class="ri-article-line text-slate-400 text-xl"></i> Ringkasan
+                        </div>
+                        <div class="flex flex-col gap-4 text-[13px] text-slate-600 font-semibold">
+                            <div class="flex justify-between items-center">
+                                <span>Total Prospek</span><strong class="text-slate-800 text-sm" id="sum-total">0</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Tanpa Website</span><strong class="text-slate-800 text-sm" id="sum-noweb">0</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Instagram Ditemukan</span><strong class="text-slate-800 text-sm" id="sum-ig">0</strong>
+                            </div>
+                            <div class="flex justify-between items-center mt-2 pt-4 border-t border-slate-100">
+                                <span>Prioritas Tinggi</span><strong class="text-slate-800 text-sm" id="sum-high">0</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Prioritas Menengah</span><strong class="text-slate-800 text-sm" id="sum-mid">0</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Prioritas Rendah</span><strong class="text-slate-800 text-sm" id="sum-low">0</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
