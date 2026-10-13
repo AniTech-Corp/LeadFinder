@@ -10,18 +10,50 @@
  * Ini fase FRONTEND: perhitungan pajak/diskon & nomor seri dilakukan di klien.
  * ==========================================================================*/
 
-const DOKUMEN_PERUSAHAAN = {
-    nama: 'AniTech',
-    nama_upper: 'ANITECH',
-    alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-    kontak: '08132151962',
-    logo: 'assets/logo/Logo AniTech Transparan.webp',
-    bank: [
-        { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-        { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
-    ],
-    warna: { r: 30, g: 58, b: 138 } // #1e3a8a (primary)
+const DOKUMEN_BRANDS = {
+    anitech: {
+        id: 'anitech',
+        nama: 'AniTech',
+        nama_upper: 'ANITECH',
+        alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
+        kontak: '08132151962',
+        logo: 'assets/logo/Logo AniTech Transparan.webp',
+        bank: [
+            { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
+            { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+        ],
+        warna: { r: 30, g: 58, b: 138 } // #1e3a8a (primary)
+    },
+    klir_by_anitech: {
+        id: 'klir_by_anitech',
+        nama: 'KLIR by AniTech',
+        nama_upper: 'KLIR BY ANITECH',
+        alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
+        kontak: '08132151962',
+        logo: 'assets/logo/[Text Hitam] Logo KLIR V2 Transparan.webp',
+        bank: [
+            { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
+            { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+        ],
+        warna: { r: 0, g: 0, b: 0 }
+    },
+    klir: {
+        id: 'klir',
+        nama: 'KLIR',
+        nama_upper: 'KLIR',
+        alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
+        kontak: '08132151962',
+        logo: 'assets/logo/[Text Hitam] Logo KLIR V2 Transparan.webp',
+        bank: [
+            { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
+            { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+        ],
+        warna: { r: 0, g: 0, b: 0 }
+    }
 };
+
+let DOKUMEN_BRAND_ID = 'anitech';
+const DOKUMEN_PERUSAHAAN = DOKUMEN_BRANDS[DOKUMEN_BRAND_ID];
 
 function dokumenFormatRupiah(n) {
     return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0));
@@ -41,10 +73,13 @@ function dokumenLabelStatus(s) {
 }
 
 // --- Logo loader: WEBP -> canvas -> PNG dataURL (agar kompatibel dgn jsPDF) ---
-let _dokumenLogoCache = null;
-function dokumenLoadLogo() {
+let _dokumenLogoCache = {};
+function dokumenLoadLogo(brandId) {
+    const brand = DOKUMEN_BRANDS[brandId];
+    if (!brand) return Promise.resolve(null);
+    const cache = _dokumenLogoCache[brand.logo];
+    if (cache !== undefined) return Promise.resolve(cache);
     return new Promise(resolve => {
-        if (_dokumenLogoCache !== null) return resolve(_dokumenLogoCache || null);
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
@@ -53,14 +88,15 @@ function dokumenLoadLogo() {
                 canvas.width = img.naturalWidth;
                 canvas.height = img.naturalHeight;
                 canvas.getContext('2d').drawImage(img, 0, 0);
-                _dokumenLogoCache = { dataUrl: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight };
+                const dataUrl = canvas.toDataURL('image/png');
+                _dokumenLogoCache[brand.logo] = { dataUrl, w: img.naturalWidth, h: img.naturalHeight };
             } catch (e) {
-                _dokumenLogoCache = false;
+                _dokumenLogoCache[brand.logo] = false;
             }
-            resolve(_dokumenLogoCache || null);
+            resolve(_dokumenLogoCache[brand.logo]);
         };
-        img.onerror = () => { _dokumenLogoCache = false; resolve(null); };
-        img.src = encodeURI(DOKUMEN_PERUSAHAAN.logo);
+        img.onerror = () => { _dokumenLogoCache[brand.logo] = false; resolve(null); };
+        img.src = encodeURI(brand.logo);
     });
 }
 
@@ -74,12 +110,12 @@ function dokumenFilename(doc) {
 async function dokumenRender(doc, kind) {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'pt', 'a4');
-    const P = DOKUMEN_PERUSAHAAN;
+    const P = DOKUMEN_BRANDS[DOKUMEN_BRAND_ID];
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const M = 40;
     const isInvoice = kind === 'invoice';
-    const logo = await dokumenLoadLogo();
+    const logo = await dokumenLoadLogo(DOKUMEN_BRAND_ID);
 
     // ================= HEADER =================
     // Kiri: nama + alamat + kontak
@@ -276,9 +312,11 @@ async function dokumenRender(doc, kind) {
 }
 
 function buildProposalPdf(doc) {
+    DOKUMEN_BRAND_ID = 'anitech';
     return dokumenRender(doc, 'proposal');
 }
 
 function buildInvoicePdf(doc) {
+    DOKUMEN_BRAND_ID = doc.brand || 'anitech';
     return dokumenRender(doc, 'invoice');
 }

@@ -1759,16 +1759,6 @@ async function initAdministrasi(viewName) {
                 : (isProposal ? '<i class="ri-file-download-line"></i> Buat Proposal' : '<i class="ri-download-2-line"></i> Unduh Invoice');
             const actionBtnHtml = `<button onclick="downloadAdminDoc('${lead.cid}', '${isProposal ? 'proposal' : 'invoice'}', '${safeTitle}', '${lead.phone || ''}')" class="${isProposal ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600'} hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors">${btnLabel}</button>`;
 
-            // Kontrol ubah status pembayaran (khusus Invoice yang sudah punya dokumen)
-            let statusSelectHtml = '';
-            if (!isProposal && doc) {
-                const safeNo = String(doc.no_dokumen || '').replace(/'/g, "\\'");
-                const opts = ['Belum Bayar', 'DP', 'Lunas']
-                    .map(s => `<option value="${s}" ${doc.status_bayar === s ? 'selected' : ''}>${s}</option>`)
-                    .join('');
-                statusSelectHtml = `<select data-prev="${doc.status_bayar}" onchange="updateStatusBayar('${safeNo}', '${lead.cid}', this)" class="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:border-blue-500 disabled:opacity-50">${opts}</select>`;
-            }
-
             const createdDate = new Date(lead.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
 
             const tr = document.createElement('tr');
@@ -1782,7 +1772,7 @@ async function initAdministrasi(viewName) {
                 <td class="py-4 px-5 text-sm font-semibold text-slate-600">${createdDate}</td>
                 <td class="py-4 px-5 text-sm font-bold text-slate-700">${nominal}</td>
                 <td class="py-4 px-5">${statusBadge}</td>
-                <td class="py-4 px-5"><div class="flex justify-center items-center gap-2 whitespace-nowrap">${statusSelectHtml}${actionBtnHtml}</div></td>
+                <td class="py-4 px-5"><div class="flex justify-center items-center gap-2 whitespace-nowrap">${actionBtnHtml}</div></td>
             `;
             tbody.appendChild(tr);
         });
@@ -1806,38 +1796,6 @@ async function initAdministrasi(viewName) {
     }
 }
 
-// Ubah status pembayaran dokumen (Belum Bayar / DP / Lunas) lalu sinkronkan badge
-async function updateStatusBayar(noDokumen, cid, el) {
-    const status = el.value;
-    const prev = el.dataset.prev || '';
-    el.disabled = true;
-    try {
-        const res = await fetch('backend/crm_api.php?action=update_status_bayar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ no_dokumen: noDokumen, status_bayar: status })
-        }).then(r => r.json());
-        if (!res || res.status !== 'success') throw new Error(res && res.message ? res.message : 'Gagal menyimpan status');
-
-        const badge = document.getElementById('badge-' + cid);
-        if (badge) {
-            const map = {
-                'Lunas': 'bg-emerald-100 text-emerald-600',
-                'DP': 'bg-amber-100 text-amber-600',
-                'Belum Bayar': 'bg-rose-100 text-rose-600'
-            };
-            badge.className = `px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${map[status] || 'bg-slate-100 text-slate-500'}`;
-            badge.textContent = status;
-        }
-        el.dataset.prev = status;
-    } catch (e) {
-        alert('Gagal mengubah status: ' + e.message);
-        el.value = prev;
-    } finally {
-        el.disabled = false;
-    }
-}
-
 async function downloadAdminDoc(cid, type, title, phone) {
     await loadAdminCatalog();
 
@@ -1848,6 +1806,8 @@ async function downloadAdminDoc(cid, type, title, phone) {
     document.getElementById('pdfModalTitle').innerText = 'Generate ' + (type === 'invoice' ? 'Invoice' : 'Proposal');
 
     document.getElementById('pdfTerminContainer').style.display = (type === 'invoice') ? 'block' : 'none';
+    document.getElementById('pdfBrandContainer').style.display = (type === 'invoice') ? 'block' : 'none';
+    document.getElementById('pdfBrand').value = 'anitech';
     document.getElementById('pdfCatatan').value = '';
     document.getElementById('pdfManualList').innerHTML = '';
 
@@ -1885,6 +1845,7 @@ async function generatePdf() {
     const id_layanan = document.getElementById('pdfPaket').value;
     const termin = document.getElementById('pdfTermin').value;
     const catatan = document.getElementById('pdfCatatan').value;
+    const brand = document.getElementById('pdfBrand').value;
 
     if (!id_layanan) {
         alert('Pilih paket layanan terlebih dahulu.');
@@ -1924,6 +1885,8 @@ async function generatePdf() {
         }
 
         const doc = result.dokumen;
+
+        doc.brand = brand;
 
         // Susun baris rincian (deskripsi/qty/satuan/harga/total) untuk template PDF
         const items = [{
