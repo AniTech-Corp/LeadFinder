@@ -83,7 +83,7 @@ async function dokumenRender(doc, kind) {
 
     // ================= HEADER =================
     // Kiri: nama + alamat + kontak
-    pdf.setFont('helvetica', 'bold');
+    pdf.setFont('times', 'bold');
     pdf.setFontSize(18);
     pdf.setTextColor(17, 24, 39);
     pdf.text(P.nama, M, 60);
@@ -97,23 +97,19 @@ async function dokumenRender(doc, kind) {
     pdf.text('Telp: ' + P.kontak, M, leftBottom + 2);
     leftBottom += 2;
 
-    // Kanan: logo + "ANITECH" + nomor seri
+    // Kanan: logo + nomor seri
     let rightBottom = 46;
     if (logo) {
-        const lw = 120;
+        const lw = 60;
         const lh = lw * (logo.h / logo.w);
         pdf.addImage(logo.dataUrl, 'PNG', pageW - M - lw, 40, lw, lh);
-        rightBottom = 40 + lh + 10;
+        rightBottom = 40 + lh;
     }
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(13);
-    pdf.setTextColor(17, 24, 39);
-    pdf.text(P.nama_upper, pageW - M, rightBottom + 6, { align: 'right' });
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
     pdf.setTextColor(71, 85, 105);
-    pdf.text('No. ' + (doc.no_seri || doc.no_dokumen || '-'), pageW - M, rightBottom + 19, { align: 'right' });
-    rightBottom += 19;
+    pdf.text('No. ' + (doc.no_seri || doc.no_dokumen || '-'), pageW - M, rightBottom + 14, { align: 'right' });
+    rightBottom += 14;
 
     let y = Math.max(leftBottom, rightBottom) + 18;
     pdf.setDrawColor(P.warna.r, P.warna.g, P.warna.b);
