@@ -233,7 +233,7 @@ async function dokumenRender(doc, kind) {
     baris('TOTAL TAGIHAN', dokumenFormatRupiah(doc.grand_total), { bold: true, warnaNilai: [P.warna.r, P.warna.g, P.warna.b] });
     if (isInvoice) {
         // Baris termin (label pendek + nilai rata kanan) supaya tidak terpotong
-        baris('TERMIN', doc.termin === 'dp' ? 'DP 50%' : 'LUNAS', { warna: [22, 163, 74], warnaNilai: [22, 163, 74] });
+        baris('TERMIN', doc.termin === 'dp' ? 'DP 50%' : 'PENUH', { warna: [22, 163, 74], warnaNilai: [22, 163, 74] });
         baris('TAGIHAN SAAT INI', dokumenFormatRupiah(doc.total_tagihan), { warna: [22, 163, 74], warnaNilai: [22, 163, 74] });
     }
     y = sy + 20;
