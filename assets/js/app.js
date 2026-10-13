@@ -33,6 +33,29 @@ async function loadView(viewName) {
             document.getElementById('searchBtn')?.addEventListener('click', startSearch);
             document.getElementById('exportBtn')?.addEventListener('click', exportAllFromDB);
             loadCityHistory();
+
+            // Live filter search for table
+            document.getElementById('tableSearchInput')?.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase().trim();
+                if (!window.masterLeads) window.masterLeads = [...currentLeads];
+                if (!term) {
+                    currentLeads = [...window.masterLeads];
+                } else {
+                    currentLeads = window.masterLeads.filter(l =>
+                        (l.title && l.title.toLowerCase().includes(term)) ||
+                        (l.searchCategory && l.searchCategory.toLowerCase().includes(term)) ||
+                        (l.address && l.address.toLowerCase().includes(term))
+                    );
+                }
+                currentPage = 1;
+                renderTable();
+            });
+
+            // Select all table checkbox handler
+            document.getElementById('selectAllCheckbox')?.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                document.querySelectorAll('#tableBody .table-checkbox').forEach(cb => cb.checked = isChecked);
+            });
         } else if (viewName === 'database') {
             initDatabase();
         } else if (viewName === 'dashboard') {
@@ -176,7 +199,7 @@ function renderTable() {
             <td class="py-3 px-4"><span class="text-blue-500 text-xs font-bold">${category}</span></td>
             <td class="py-3 px-4">${kecamatan}</td>
             <td class="py-3 px-4">${phone}</td>
-            <td class="py-3 px-4" id="td-ig-${idx}">${igDisplay}</td>
+            <td class="py-3 px-4" id="td-ig-${lead.cid}">${igDisplay}</td>
             <td class="py-3 px-4">${webDisplay}</td>
             <td class="py-3 px-4 text-amber-500 font-bold"><i class="ri-star-fill"></i> ${rating}</td>
             <td class="py-3 px-4 text-slate-500"><i class="ri-chat-1-line text-slate-400"></i> ${reviews}</td>
@@ -314,8 +337,15 @@ async function startSearch() {
         });
 
         currentLeads = unique;
+        window.masterLeads = [...unique];
         updateStats();
         renderTable();
+
+        // Simpan seluruh data prospek hasil pencarian ke database secara otomatis
+        for (const lead of currentLeads) {
+            await saveLeadToDB(lead);
+        }
+        updateSidebarBadges();
 
         runDeepHunt();
 
@@ -328,10 +358,10 @@ async function startSearch() {
 }
 
 async function runDeepHunt() {
-    const displayLeads = currentLeads.filter(l => !l.website);
+    const leadsToEnrich = currentLeads.filter(l => !l.website && (!l.igUrl || l.igUrl === 'Tidak Ditemukan' || !l.igUrl.includes('http')));
 
-    for (let i = 0; i < displayLeads.length; i++) {
-        const lead = displayLeads[i];
+    for (let i = 0; i < leadsToEnrich.length; i++) {
+        const lead = leadsToEnrich[i];
         try {
             const res = await fetch('backend/api.php', {
                 method: 'POST',
@@ -360,7 +390,7 @@ async function runDeepHunt() {
 
             lead.igUrl = foundIg ? `https://instagram.com/${foundIg}` : "Tidak Ditemukan";
 
-            const cell = document.getElementById(`td-ig-${i}`);
+            const cell = document.getElementById(`td-ig-${lead.cid}`);
             if (cell) {
                 if (foundIg) {
                     cell.innerHTML = `<a href="https://instagram.com/${foundIg}" target="_blank" class="text-pink-500 hover:underline flex items-center gap-1.5"><i class="ri-instagram-fill"></i> @${foundIg}</a>`;
@@ -373,11 +403,11 @@ async function runDeepHunt() {
 
         } catch (e) {
             lead.igUrl = "Tidak Ditemukan";
-            const cell = document.getElementById(`td-ig-${i}`);
+            const cell = document.getElementById(`td-ig-${lead.cid}`);
             if (cell) cell.innerHTML = `<span class="text-slate-400">-</span>`;
         }
 
-        // Save to Database
+        // Save updated IG info to Database
         await saveLeadToDB(lead);
         updateSidebarBadges(); // Live update sidebar
     }
@@ -457,7 +487,8 @@ function updateStats() {
     });
 
     const el = id => document.getElementById(id);
-    if (el('stat-total')) el('stat-total').innerText = noWeb;
+    if (el('stat-total')) el('stat-total').innerText = total;
+    if (el('stat-total-desc')) el('stat-total-desc').innerText = `${noWeb} tanpa website`;
     if (el('stat-ig')) {
         el('stat-ig').innerText = igFound;
         el('stat-ig-desc').innerText = total > 0 ? Math.round((igFound / total) * 100) + '% dari total' : '0% dari total';
@@ -1074,6 +1105,22 @@ async function initDatabase() {
 
             window.allDatabaseLeads = result.data;
             renderDatabaseTable(result.data);
+
+            // Wire database search input
+            const searchInput = document.getElementById('dbSearchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase().trim();
+                    if (!window.allDatabaseLeads) return;
+                    const filtered = window.allDatabaseLeads.filter(l =>
+                        (l.title && l.title.toLowerCase().includes(query)) ||
+                        (l.industry && l.industry.toLowerCase().includes(query)) ||
+                        (l.address && l.address.toLowerCase().includes(query)) ||
+                        (l.phone && l.phone.toLowerCase().includes(query))
+                    );
+                    renderDatabaseTable(filtered);
+                });
+            }
         } else {
             tbody.innerHTML = `<tr><td colspan="11" class="p-16 text-center text-slate-400">Belum ada data yang tersimpan. Lakukan pencarian terlebih dahulu.</td></tr>`;
         }
@@ -1208,7 +1255,7 @@ async function initCockpit(viewName) {
             // Filter logic
             let filteredData = result.data.filter(lead => {
                 const status = (lead.status || 'baru').toLowerCase();
-                if (viewName === 'cockpit_prioritas') return lead.score >= 70 && status === 'baru';
+                if (viewName === 'cockpit_prioritas') return lead.score >= 70 && status !== 'cut' && status !== 'closing' && status !== 'selesai' && status !== 'antrian' && status !== 'tersimpan';
                 if (viewName === 'cockpit_baru') return status === 'baru';
                 if (viewName === 'cockpit_telepon') return status === 'telepon_lagi';
                 if (viewName === 'cockpit_followup') return status === 'follow_up';
@@ -1220,91 +1267,113 @@ async function initCockpit(viewName) {
             });
 
             document.getElementById('cpTotalCount').innerText = filteredData.length;
-            tbody.innerHTML = '';
+            renderCockpitTableRows(filteredData, viewName);
 
-            if (filteredData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-16 text-center text-slate-400">Tidak ada data prospek pada kategori ini.</td></tr>`;
-                return;
+            // Wire live search input for cockpit
+            const cpSearch = document.getElementById('cpSearchInput');
+            if (cpSearch) {
+                cpSearch.addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase().trim();
+                    const searched = filteredData.filter(l =>
+                        (l.title && l.title.toLowerCase().includes(term)) ||
+                        (l.industry && l.industry.toLowerCase().includes(term)) ||
+                        (l.address && l.address.toLowerCase().includes(term)) ||
+                        (l.phone && l.phone.toLowerCase().includes(term))
+                    );
+                    document.getElementById('cpTotalCount').innerText = searched.length;
+                    renderCockpitTableRows(searched, viewName);
+                });
             }
-
-            filteredData.forEach((lead, idx) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors group";
-
-                let priorityClass = 'text-slate-600 bg-slate-50 border-slate-200';
-                let priorityText = 'Rendah';
-                let priorityIcon = 'ri-star-line';
-                if (lead.score >= 70) {
-                    priorityClass = 'text-rose-500 bg-rose-50 border-rose-100';
-                    priorityText = 'Tinggi';
-                    priorityIcon = 'ri-star-fill';
-                } else if (lead.score >= 50) {
-                    priorityClass = 'text-amber-500 bg-amber-50 border-amber-100';
-                    priorityText = 'Menengah';
-                    priorityIcon = 'ri-star-half-line';
-                }
-
-                const initial = lead.title ? lead.title.charAt(0).toUpperCase() : '?';
-                const phoneWa = lead.phone ? lead.phone.replace(/[^0-9]/g, '').replace(/^0/, '62') : '';
-
-                tr.innerHTML = `
-                    <td class="py-4 px-5 text-center text-slate-500 font-bold">${idx + 1}</td>
-                    <td class="py-4 px-5">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs shrink-0">${initial}</div>
-                            <div>
-                                <div class="font-bold text-slate-800">${lead.title}</div>
-                                <div class="text-[11px] text-slate-400 truncate max-w-[200px]" title="${lead.address}">
-                                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.title + ' ' + lead.address)}" target="_blank" class="hover:text-blue-600 hover:underline">
-                                        ${lead.address}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="py-4 px-5"><span class="text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-md text-xs">${lead.industry}</span></td>
-                    <td class="py-4 px-5">
-                        <div class="flex flex-col gap-1">
-                            ${phoneWa ? `<a href="https://wa.me/${phoneWa}" target="_blank" class="text-emerald-600 font-semibold hover:underline flex items-center gap-1"><i class="ri-whatsapp-fill"></i> ${lead.phone}</a>` : '<span class="text-slate-400">-</span>'}
-                            ${lead.ig_url && lead.ig_url !== 'Tidak Ditemukan' ? `<a href="${lead.ig_url}" target="_blank" class="text-pink-500 font-semibold hover:underline flex items-center gap-1"><i class="ri-instagram-fill"></i> Instagram</a>` : ''}
-                        </div>
-                    </td>
-                    <td class="py-4 px-5 text-center font-bold text-slate-800">${lead.score}</td>
-                    <td class="py-4 px-5">
-                        <span class="px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 w-max border ${priorityClass}">
-                            <i class="${priorityIcon}"></i> ${priorityText}
-                        </span>
-                    </td>
-                    <td class="py-4 px-5 whitespace-nowrap">
-                        ${viewName === 'cockpit_selesai' ? '<span class="text-slate-400 italic text-[11px]">-</span>' :
-                        `<input type="datetime-local" class="text-[11px] font-semibold bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500 cursor-text w-[140px]" 
-                            onchange="updateLeadJadwal('${lead.cid}', this.value)" 
-                            value="${lead.jadwal_action || ''}">`}
-                    </td>
-                    <td class="py-4 px-5">
-                        <span class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500" id="status-badge-${lead.cid}">
-                            ${lead.status || 'BARU'}
-                        </span>
-                    </td>
-                    <td class="py-4 px-5 text-center">
-                        <select onchange="updateLeadStatus('${lead.cid}', this.value)" class="text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer">
-                            <option value="">Pilih Aksi...</option>
-                            <option value="baru" ${lead.status === 'baru' ? 'selected' : ''}>Kembalikan ke Prospek Baru</option>
-                            <option value="follow_up" ${lead.status === 'follow_up' ? 'selected' : ''}>Sedang Follow Up</option>
-                            <option value="telepon_lagi" ${lead.status === 'telepon_lagi' ? 'selected' : ''}>Telepon Lagi Nanti</option>
-                            <option value="demo" ${lead.status === 'demo' ? 'selected' : ''}>Jadwal Demo</option>
-                            <option value="antrian" ${lead.status === 'antrian' ? 'selected' : ''}>Berhasil Closing (Antrian Project)</option>
-                            <option value="selesai" ${lead.status === 'selesai' || lead.status === 'closing' ? 'selected' : ''}>Project Selesai</option>
-                            <option value="cut" ${lead.status === 'cut' ? 'selected' : ''}>Cut / Ditolak</option>
-                        </select>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
     } catch (e) {
         console.error("Failed to load cockpit data", e);
     }
+}
+
+function renderCockpitTableRows(data, viewName) {
+    const tbody = document.getElementById('cpTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-16 text-center text-slate-400">Tidak ada data prospek pada kategori ini.</td></tr>`;
+        return;
+    }
+
+    data.forEach((lead, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors group";
+
+        let priorityClass = 'text-slate-600 bg-slate-50 border-slate-200';
+        let priorityText = 'Rendah';
+        let priorityIcon = 'ri-star-line';
+        if (lead.score >= 70) {
+            priorityClass = 'text-rose-500 bg-rose-50 border-rose-100';
+            priorityText = 'Tinggi';
+            priorityIcon = 'ri-star-fill';
+        } else if (lead.score >= 50) {
+            priorityClass = 'text-amber-500 bg-amber-50 border-amber-100';
+            priorityText = 'Menengah';
+            priorityIcon = 'ri-star-half-line';
+        }
+
+        const initial = lead.title ? lead.title.charAt(0).toUpperCase() : '?';
+        const phoneWa = lead.phone ? lead.phone.replace(/[^0-9]/g, '').replace(/^0/, '62') : '';
+
+        tr.innerHTML = `
+            <td class="py-4 px-5 text-center text-slate-500 font-bold">${idx + 1}</td>
+            <td class="py-4 px-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs shrink-0">${initial}</div>
+                    <div>
+                        <div class="font-bold text-slate-800">${lead.title}</div>
+                        <div class="text-[11px] text-slate-400 truncate max-w-[200px]" title="${lead.address}">
+                            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.title + ' ' + lead.address)}" target="_blank" class="hover:text-blue-600 hover:underline">
+                                ${lead.address}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td class="py-4 px-5"><span class="text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-md text-xs">${lead.industry}</span></td>
+            <td class="py-4 px-5">
+                <div class="flex flex-col gap-1">
+                    ${phoneWa ? `<a href="https://wa.me/${phoneWa}" target="_blank" class="text-emerald-600 font-semibold hover:underline flex items-center gap-1"><i class="ri-whatsapp-fill"></i> ${lead.phone}</a>` : '<span class="text-slate-400">-</span>'}
+                    ${lead.ig_url && lead.ig_url !== 'Tidak Ditemukan' ? `<a href="${lead.ig_url}" target="_blank" class="text-pink-500 font-semibold hover:underline flex items-center gap-1"><i class="ri-instagram-fill"></i> Instagram</a>` : ''}
+                </div>
+            </td>
+            <td class="py-4 px-5 text-center font-bold text-slate-800">${lead.score}</td>
+            <td class="py-4 px-5">
+                <span class="px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 w-max border ${priorityClass}">
+                    <i class="${priorityIcon}"></i> ${priorityText}
+                </span>
+            </td>
+            <td class="py-4 px-5 whitespace-nowrap">
+                ${viewName === 'cockpit_selesai' ? '<span class="text-slate-400 italic text-[11px]">-</span>' :
+                `<input type="datetime-local" class="text-[11px] font-semibold bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500 cursor-text w-[140px]" 
+                    onchange="updateLeadJadwal('${lead.cid}', this.value)" 
+                    value="${lead.jadwal_action || ''}">`}
+            </td>
+            <td class="py-4 px-5">
+                <span class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500" id="status-badge-${lead.cid}">
+                    ${lead.status || 'BARU'}
+                </span>
+            </td>
+            <td class="py-4 px-5 text-center">
+                <select onchange="updateLeadStatus('${lead.cid}', this.value)" class="text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer">
+                    <option value="">Pilih Aksi...</option>
+                    <option value="baru" ${lead.status === 'baru' ? 'selected' : ''}>Kembalikan ke Prospek Baru</option>
+                    <option value="follow_up" ${lead.status === 'follow_up' ? 'selected' : ''}>Sedang Follow Up</option>
+                    <option value="telepon_lagi" ${lead.status === 'telepon_lagi' ? 'selected' : ''}>Telepon Lagi Nanti</option>
+                    <option value="demo" ${lead.status === 'demo' ? 'selected' : ''}>Jadwal Demo</option>
+                    <option value="antrian" ${lead.status === 'antrian' ? 'selected' : ''}>Berhasil Closing (Antrian Project)</option>
+                    <option value="selesai" ${lead.status === 'selesai' || lead.status === 'closing' ? 'selected' : ''}>Project Selesai</option>
+                    <option value="cut" ${lead.status === 'cut' ? 'selected' : ''}>Cut / Ditolak</option>
+                </select>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 async function updateLeadStatus(cid, newStatus) {
@@ -1513,9 +1582,14 @@ function sendWaPdf() {
     const jenis = btn.dataset.jenis;
     const phoneRaw = document.getElementById('pdfPhone').value;
 
-    let phone = phoneRaw.replace(/\D/g, '');
+    let phone = phoneRaw ? phoneRaw.replace(/\D/g, '') : '';
     if (phone.startsWith('0')) {
         phone = '62' + phone.substring(1);
+    }
+
+    if (!phone) {
+        alert('Nomor kontak WhatsApp klien tidak tersedia.');
+        return;
     }
 
     let text = `Halo Bapak/Ibu, berikut kami lampirkan ${jenis.toUpperCase()} untuk sistem Anda: \n${url}\n\nTerima kasih.`;
