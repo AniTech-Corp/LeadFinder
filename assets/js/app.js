@@ -614,147 +614,222 @@ async function updateSidebarBadges() {
     }
 }
 
+// ===== DASHBOARD HARIAN (dihitung di sisi klien, tanpa ubah backend) =====
+const DASH_INDUSTRIES = ['Kuliner', 'Fashion', 'Kecantikan', 'Laundry', 'Toko Retail', 'Florist', 'Catering', 'Percetakan', 'Lainnya'];
+
+function dashParseTs(s) {
+    if (!s) return new Date(NaN);
+    return new Date(String(s).replace(' ', 'T'));
+}
+
+function dashLocalDateStr(d = new Date()) {
+    const x = new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+
+function dashSameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function onDashboardDateChange() {
+    initDashboard();
+}
+
+// Filter lead sesuai mode: "day", "all", "year_this", "year_last", atau "01".."12"
+function dashFilterLeads(allLeads, mode, refDate) {
+    const ref = refDate ? new Date(refDate + 'T00:00:00') : new Date();
+    return allLeads.filter(l => {
+        const d = dashParseTs(l.created_at);
+        if (isNaN(d.getTime())) return false;
+        if (mode === 'all') return true;
+        if (mode === 'day') return dashSameDay(d, ref);
+        if (mode === 'year_this') return d.getFullYear() === ref.getFullYear();
+        if (mode === 'year_last') return d.getFullYear() === ref.getFullYear() - 1;
+        if (/^(0[1-9]|1[0-2])$/.test(mode)) return (d.getMonth() + 1) === parseInt(mode, 10) && d.getFullYear() === ref.getFullYear();
+        return true;
+    });
+}
+
+function dashAggregate(leads) {
+    const data = { total: 0, follow_up: 0, demo: 0, closing: 0, industry: {}, priority: { tinggi: 0, menengah: 0, rendah: 0 } };
+    DASH_INDUSTRIES.forEach(i => data.industry[i] = 0);
+
+    leads.forEach(l => {
+        data.total++;
+        const status = (l.status || 'baru').toLowerCase();
+        if (status === 'follow_up') data.follow_up++;
+        else if (status === 'demo') data.demo++;
+        else if (status === 'selesai' || status === 'closing') data.closing++;
+
+        const ind = DASH_INDUSTRIES.includes(l.industry) ? l.industry : 'Lainnya';
+        data.industry[ind]++;
+
+        const score = parseInt(l.score, 10) || 0;
+        if (score >= 70) data.priority.tinggi++;
+        else if (score >= 50) data.priority.menengah++;
+        else data.priority.rendah++;
+    });
+
+    return data;
+}
+
+function dashChartData(leads, mode) {
+    const closing = leads.filter(l => ['closing', 'selesai'].includes((l.status || '').toLowerCase()));
+
+    if (mode === 'day') {
+        const labels = ['00-06', '06-12', '12-18', '18-24'];
+        const values = [0, 0, 0, 0];
+        closing.forEach(l => {
+            const h = dashParseTs(l.created_at).getHours();
+            values[Math.min(3, Math.floor(h / 6))]++;
+        });
+        return { labels, values };
+    }
+    if (/^(0[1-9]|1[0-2])$/.test(mode)) {
+        const labels = ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4', 'Minggu 5'];
+        const values = [0, 0, 0, 0, 0];
+        closing.forEach(l => {
+            const day = dashParseTs(l.created_at).getDate();
+            values[Math.min(4, Math.floor((day - 1) / 7))]++;
+        });
+        return { labels, values };
+    }
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const values = new Array(12).fill(0);
+    closing.forEach(l => { values[dashParseTs(l.created_at).getMonth()]++; });
+    return { labels, values };
+}
+
+function dashRenderMetrics(data) {
+    if (document.getElementById('dash_total')) document.getElementById('dash_total').innerText = data.total || 0;
+    if (document.getElementById('dash_follow_up')) document.getElementById('dash_follow_up').innerText = data.follow_up || 0;
+    if (document.getElementById('dash_demo')) document.getElementById('dash_demo').innerText = data.demo || 0;
+    if (document.getElementById('dash_closing')) document.getElementById('dash_closing').innerText = data.closing || 0;
+
+    DASH_INDUSTRIES.forEach(cat => {
+        const el = document.getElementById('dash_cat_' + cat);
+        if (el) el.innerText = data.industry[cat] || 0;
+    });
+
+    const pri = data.priority;
+    const total = (pri.tinggi + pri.menengah + pri.rendah) || 1;
+    if (document.getElementById('dash_pri_tinggi')) document.getElementById('dash_pri_tinggi').innerText = pri.tinggi;
+    if (document.getElementById('dash_bar_tinggi')) document.getElementById('dash_bar_tinggi').style.width = Math.round((pri.tinggi / total) * 100) + '%';
+    if (document.getElementById('dash_pri_menengah')) document.getElementById('dash_pri_menengah').innerText = pri.menengah;
+    if (document.getElementById('dash_bar_menengah')) document.getElementById('dash_bar_menengah').style.width = Math.round((pri.menengah / total) * 100) + '%';
+    if (document.getElementById('dash_pri_rendah')) document.getElementById('dash_pri_rendah').innerText = pri.rendah;
+    if (document.getElementById('dash_bar_rendah')) document.getElementById('dash_bar_rendah').style.width = Math.round((pri.rendah / total) * 100) + '%';
+}
+
+function dashRenderChart(chart) {
+    const ctx = document.getElementById('prospekChart');
+    if (!ctx) return;
+
+    // Jika canvas lama sudah terlepas dari DOM (navigasi view), buat ulang
+    if (window.prospekChartInstance && !document.body.contains(window.prospekChartInstance.canvas)) {
+        window.prospekChartInstance.destroy();
+        window.prospekChartInstance = null;
+    }
+
+    if (window.prospekChartInstance) {
+        window.prospekChartInstance.data.labels = chart.labels;
+        window.prospekChartInstance.data.datasets[0].data = chart.values;
+        window.prospekChartInstance.update('none');
+        return;
+    }
+
+    window.prospekChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chart.labels,
+            datasets: [{
+                label: 'Project Selesai',
+                data: chart.values,
+                borderColor: '#3b82f6',
+                backgroundColor: '#3b82f6',
+                borderWidth: 4,
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                fill: false,
+                tension: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    ticks: { precision: 0, font: { weight: 'bold', color: '#475569' }, padding: 10 },
+                    grid: { drawOnChartArea: true, drawTicks: true, tickLength: 6, color: '#f1f5f9' },
+                    border: { display: true, width: 2, color: '#334155' }
+                },
+                x: {
+                    ticks: { font: { weight: 'bold', color: '#475569' }, padding: 10 },
+                    grid: { drawOnChartArea: false, drawTicks: true, tickLength: 6, color: '#334155' },
+                    border: { display: true, width: 2, color: '#334155' }
+                }
+            }
+        }
+    });
+}
+
 async function initDashboard(isRealtimeUpdate = false) {
     try {
         const periodFilter = document.getElementById('dash_period_filter');
-        const period = periodFilter ? periodFilter.value : '10'; // default to October
+        const datePicker = document.getElementById('dash_date_picker');
 
         if (periodFilter && !periodFilter.dataset.listenerAttached) {
             periodFilter.addEventListener('change', () => {
+                // Pilih periode -> hapus tanggal spesifik
+                if (datePicker) datePicker.value = '';
                 initDashboard();
             });
             periodFilter.dataset.listenerAttached = 'true';
         }
 
-        const response = await fetch(`backend/crm_api.php?action=dashboard_stats&period=${period}`);
+        // Tentukan mode: tanggal spesifik mengalahkan filter periode
+        let mode = periodFilter ? periodFilter.value : 'today';
+        let refDate = null;
+        if (datePicker && datePicker.value) {
+            mode = 'day';
+            refDate = datePicker.value;
+        } else if (mode === 'today') {
+            mode = 'day';
+            refDate = dashLocalDateStr();
+        }
+
+        // Periode yang dipakai untuk fitur "Unduh Laporan" (format backend)
+        const period = /^(0[1-9]|1[0-2])$/.test(mode)
+            ? mode
+            : (['all', 'year_this', 'year_last'].includes(mode) ? mode : String(new Date().getMonth() + 1).padStart(2, '0'));
+        window.dashCurrentExportPeriod = period;
+
+        const response = await fetch('backend/crm_api.php?action=get');
         const result = await response.json();
 
-        if (result.status === 'success') {
-            const data = result.data;
+        if (result && result.data) {
+            const scoped = dashFilterLeads(result.data, mode, refDate);
+            const data = dashAggregate(scoped);
 
-            // Top Metrics
-            if (document.getElementById('dash_total')) document.getElementById('dash_total').innerText = data.total || 0;
-            if (document.getElementById('dash_follow_up')) document.getElementById('dash_follow_up').innerText = data.follow_up || 0;
-            if (document.getElementById('dash_demo')) document.getElementById('dash_demo').innerText = data.demo || 0;
-            if (document.getElementById('dash_closing')) document.getElementById('dash_closing').innerText = data.closing || 0;
+            dashRenderMetrics(data);
+            dashRenderChart(dashChartData(scoped, mode));
 
-            // Industries
-            const industries = ['Kuliner', 'Fashion', 'Kecantikan', 'Laundry', 'Toko Retail', 'Florist', 'Catering', 'Percetakan', 'Lainnya'];
-            industries.forEach(cat => {
-                const el = document.getElementById('dash_cat_' + cat);
-                if (el) {
-                    el.innerText = data.industry[cat] || 0;
-                }
-            });
-
-            // Priorities
-            const pri = data.priority;
-            const total = (pri.tinggi * 1) + (pri.menengah * 1) + (pri.rendah * 1) || 1; // prevent divide by zero
-
-            if (document.getElementById('dash_pri_tinggi')) document.getElementById('dash_pri_tinggi').innerText = pri.tinggi;
-            if (document.getElementById('dash_bar_tinggi')) document.getElementById('dash_bar_tinggi').style.width = Math.round((pri.tinggi / total) * 100) + '%';
-
-            if (document.getElementById('dash_pri_menengah')) document.getElementById('dash_pri_menengah').innerText = pri.menengah;
-            if (document.getElementById('dash_bar_menengah')) document.getElementById('dash_bar_menengah').style.width = Math.round((pri.menengah / total) * 100) + '%';
-
-            if (document.getElementById('dash_pri_rendah')) document.getElementById('dash_pri_rendah').innerText = pri.rendah;
-            if (document.getElementById('dash_bar_rendah')) document.getElementById('dash_bar_rendah').style.width = Math.round((pri.rendah / total) * 100) + '%';
-
-            // Initialize Chart dynamically based on data.closing
-            const totalSelesai = parseInt(data.closing || 0);
-
-            // Generate data up to the current week dynamically
-            const d = new Date().getDate();
-            let currentWeek = Math.ceil(d / 7);
-            if (currentWeek > 4) currentWeek = 4;
-
-            let wData = [0, 0, 0, 0];
-
-            let remaining = totalSelesai;
-            for (let i = 0; i < currentWeek; i++) {
-                if (i === currentWeek - 1) {
-                    wData[i] = remaining;
-                } else {
-                    let portion = Math.floor(totalSelesai / currentWeek);
-                    wData[i] = portion;
-                    remaining -= portion;
-                }
-            }
-
-            const ctx = document.getElementById('prospekChart');
-            if (ctx) {
-                if (window.prospekChartInstance) {
-                    if (isRealtimeUpdate) {
-                        window.prospekChartInstance.data.datasets[0].data = wData;
-                        window.prospekChartInstance.update('none');
-                    } else {
-                        window.prospekChartInstance.destroy();
-                        window.prospekChartInstance = null;
-                    }
-                }
-                if (!window.prospekChartInstance) {
-                    window.prospekChartInstance = new Chart(ctx, {
-                        type: 'line',
-                    data: {
-                        labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
-                        datasets: [{
-                            label: 'Project Selesai',
-                            data: wData,
-                            borderColor: '#3b82f6', // Tailwind blue-500
-                            backgroundColor: '#3b82f6',
-                            borderWidth: 4,
-                            pointBackgroundColor: '#3b82f6',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            pointRadius: 6,
-                            fill: false,
-                            tension: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                min: 0,
-                                suggestedMax: 20,
-                                ticks: {
-                                    stepSize: 5,
-                                    precision: 0,
-                                    font: { weight: 'bold', color: '#475569' },
-                                    padding: 10
-                                },
-                                grid: {
-                                    drawOnChartArea: true,
-                                    drawTicks: true,
-                                    tickLength: 6,
-                                    color: '#f1f5f9'
-                                },
-                                border: { display: true, width: 2, color: '#334155' }
-                            },
-                            x: {
-                                ticks: {
-                                    font: { weight: 'bold', color: '#475569' },
-                                    padding: 10
-                                },
-                                grid: { drawOnChartArea: false, drawTicks: true, tickLength: 6, color: '#334155' },
-                                border: { display: true, width: 2, color: '#334155' }
-                            }
-                        }
-                    }
-                    });
-                }
-            }
+            // Jadwal selalu untuk HARI INI
+            const todayStr = dashLocalDateStr();
+            const dashJadwalHariIni = result.data
+                .filter(l => (l.jadwal_action || '').slice(0, 10) === todayStr)
+                .sort((a, b) => String(a.jadwal_action).localeCompare(String(b.jadwal_action)));
 
             // Render Jadwal Hari Ini
             const scheduleList = document.getElementById('dash_schedule_list');
             if (scheduleList) {
                 scheduleList.innerHTML = '';
-                const jadwalData = data.jadwal_hari_ini || [];
+                const jadwalData = dashJadwalHariIni;
 
                 if (jadwalData.length === 0) {
                     scheduleList.innerHTML = `<div class="p-4 text-center text-slate-500 text-sm mt-4">Tidak ada jadwal follow up untuk hari ini.</div>`;
@@ -1416,6 +1491,127 @@ async function updateLeadJadwal(cid, newJadwal) {
     }
 }
 
+// ===== ADMINISTRASI: PROPOSAL & INVOICE =====
+let adminCatalog = { katalog: [], fitur_opsional: [] };
+let adminCatalogLoaded = false;
+let lastGeneratedDoc = null;
+
+function formatRupiah(n) {
+    return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0));
+}
+
+async function loadAdminCatalog() {
+    if (adminCatalogLoaded && adminCatalog.katalog.length) return adminCatalog;
+    try {
+        const res = await fetch('backend/crm_api.php?action=catalog');
+        const result = await res.json();
+        if (result.status === 'success') {
+            adminCatalog = { katalog: result.katalog || [], fitur_opsional: result.fitur_opsional || [] };
+            adminCatalogLoaded = true;
+        }
+    } catch (e) {
+        console.error('Gagal memuat katalog layanan', e);
+    }
+    return adminCatalog;
+}
+
+function populatePaketDropdown() {
+    const sel = document.getElementById('pdfPaket');
+    if (!sel) return;
+    sel.innerHTML = '';
+    if (!adminCatalog.katalog.length) {
+        sel.innerHTML = '<option value="">Katalog paket belum tersedia</option>';
+        return;
+    }
+    adminCatalog.katalog.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k.id_layanan;
+        opt.textContent = `${k.nama_paket} (${formatRupiah(k.harga)})`;
+        sel.appendChild(opt);
+    });
+}
+
+function updatePaketDesc() {
+    const sel = document.getElementById('pdfPaket');
+    const desc = document.getElementById('pdfPaketDesc');
+    if (!sel || !desc) return;
+    const k = adminCatalog.katalog.find(x => String(x.id_layanan) === String(sel.value));
+    desc.textContent = k ? `${k.deskripsi_fitur || ''} \u2022 Estimasi ${k.estimasi_hari} hari kerja` : '';
+}
+
+function renderFiturCheckboxes() {
+    const list = document.getElementById('pdfFiturList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!adminCatalog.fitur_opsional.length) {
+        list.innerHTML = '<div class="text-[11px] text-slate-400 col-span-2 py-2">Belum ada master fitur opsional.</div>';
+        return;
+    }
+    adminCatalog.fitur_opsional.forEach(f => {
+        const label = document.createElement('label');
+        label.className = 'flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 hover:border-blue-300 cursor-pointer transition-colors';
+        label.innerHTML = `
+            <input type="checkbox" class="mt-0.5 fitur-op-checkbox" data-id="${f.id_fitur}" data-harga="${f.harga}" data-nama="${String(f.nama_fitur).replace(/"/g, '&quot;')}" onchange="recalcDokumenTotal()">
+            <span class="flex flex-col">
+                <span class="text-[12px] font-semibold text-slate-700 leading-tight">${f.nama_fitur}</span>
+                <span class="text-[10px] text-slate-400 mt-0.5">${f.kategori || 'Umum'} \u2022 ${formatRupiah(f.harga)}</span>
+            </span>`;
+        list.appendChild(label);
+    });
+}
+
+function addManualFeature(nama = '', harga = '') {
+    const container = document.getElementById('pdfManualList');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'manual-feature flex items-center gap-2';
+    row.innerHTML = `
+        <input type="text" placeholder="Nama fitur manual" value="${String(nama).replace(/"/g, '&quot;')}" class="man-nama flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-blue-500">
+        <input type="number" placeholder="Harga" value="${harga}" class="man-harga w-32 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-blue-500" oninput="recalcDokumenTotal()">
+        <button type="button" onclick="this.closest('.manual-feature').remove(); recalcDokumenTotal();" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="ri-delete-bin-line"></i></button>`;
+    container.appendChild(row);
+    recalcDokumenTotal();
+}
+
+function collectFitur() {
+    const fitur = [];
+    document.querySelectorAll('.fitur-op-checkbox:checked').forEach(cb => {
+        fitur.push({ id_fitur: parseInt(cb.dataset.id, 10), nama: cb.dataset.nama, harga: parseFloat(cb.dataset.harga) || 0 });
+    });
+    document.querySelectorAll('#pdfManualList .manual-feature').forEach(row => {
+        const nama = row.querySelector('.man-nama').value.trim();
+        const harga = parseFloat(row.querySelector('.man-harga').value) || 0;
+        if (nama) fitur.push({ nama: nama, harga: harga, manual: true });
+    });
+    return fitur;
+}
+
+function recalcDokumenTotal() {
+    updatePaketDesc();
+    const sel = document.getElementById('pdfPaket');
+    const paket = adminCatalog.katalog.find(x => String(x.id_layanan) === String(sel ? sel.value : ''));
+    const hargaPaket = paket ? parseFloat(paket.harga) : 0;
+    const subtotalFitur = collectFitur().reduce((s, f) => s + (parseFloat(f.harga) || 0), 0);
+    const grand = hargaPaket + subtotalFitur;
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('pdfSumPaket', formatRupiah(hargaPaket));
+    set('pdfSumFitur', formatRupiah(subtotalFitur));
+    set('pdfSumGrand', formatRupiah(grand));
+
+    const jenis = document.getElementById('pdfJenis').value;
+    const termin = document.getElementById('pdfTermin').value;
+    const tagihanRow = document.getElementById('pdfSumTagihanRow');
+    if (!tagihanRow) return;
+    if (jenis === 'invoice') {
+        tagihanRow.classList.remove('hidden');
+        document.getElementById('pdfSumTagihanLabel').textContent = (termin === 'dp') ? 'Tagihan Aktif (DP 50%)' : 'Tagihan Aktif (Lunas)';
+        set('pdfSumTagihan', formatRupiah(termin === 'dp' ? grand * 0.5 : grand));
+    } else {
+        tagihanRow.classList.add('hidden');
+    }
+}
+
 async function initAdministrasi(viewName) {
     const isProposal = viewName === 'administrasi_proposal';
     const config = {
@@ -1429,98 +1625,122 @@ async function initAdministrasi(viewName) {
     if (document.getElementById('adminHeaderIcon')) document.getElementById('adminHeaderIcon').className = conf.icon;
     if (document.getElementById('adminHeaderIconBg')) document.getElementById('adminHeaderIconBg').className = `w-10 h-10 rounded-xl flex items-center justify-center text-xl ${conf.color}`;
 
+    // Preload katalog di background supaya modal langsung siap
+    loadAdminCatalog();
+
     try {
-        const response = await fetch('backend/crm_api.php?action=get');
-        const result = await response.json();
+        const [resLeads, resDok] = await Promise.all([
+            fetch('backend/crm_api.php?action=get').then(r => r.json()).catch(() => ({ data: [] })),
+            fetch('backend/crm_api.php?action=dokumen_list').then(r => r.json()).catch(() => ({ data: [] }))
+        ]);
+
         const tbody = document.getElementById('adminTableBody');
+        const jenisLabel = isProposal ? 'Proposal' : 'Invoice';
+        const leads = (resLeads && resLeads.data) ? resLeads.data : [];
 
-        if (result.status === 'success' && result.data) {
-            let filteredData = result.data.filter(lead => {
-                const status = (lead.status || 'baru').toLowerCase();
-                if (isProposal) return status === 'demo' || status === 'follow_up';
-                if (!isProposal) return status === 'antrian';
-                return false;
-            });
+        // Ambil dokumen terbaru per klien untuk jenis ini (list sudah urut tanggal DESC)
+        const latestDoc = {};
+        ((resDok && resDok.data) || []).forEach(d => {
+            if (d.jenis !== jenisLabel) return;
+            if (!latestDoc[d.cid]) latestDoc[d.cid] = d;
+        });
 
-            document.getElementById('adminTotalCount').innerText = filteredData.length;
-            tbody.innerHTML = '';
+        const filteredData = leads.filter(lead => {
+            const status = (lead.status || 'baru').toLowerCase();
+            if (isProposal) return status === 'demo' || status === 'follow_up';
+            return status === 'antrian';
+        });
 
-            if (filteredData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-16 text-center text-slate-400 font-medium">Tidak ada data untuk ditampilkan pada kategori ini.</td></tr>`;
-                return;
+        document.getElementById('adminTotalCount').innerText = filteredData.length;
+        tbody.innerHTML = '';
+
+        if (filteredData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-16 text-center text-slate-400 font-medium">Tidak ada data untuk ditampilkan pada kategori ini.</td></tr>`;
+            return;
+        }
+
+        filteredData.forEach((lead, idx) => {
+            const doc = latestDoc[lead.cid];
+            const nominal = doc ? formatRupiah(doc.total_tagihan) : '<span class="text-slate-300">-</span>';
+
+            let statusBadge;
+            if (!doc) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400">Belum Dibuat</span>`;
+            } else if (isProposal) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-600">Sudah Dibuat</span>`;
+            } else {
+                const map = {
+                    'Lunas': 'bg-emerald-100 text-emerald-600',
+                    'DP': 'bg-amber-100 text-amber-600',
+                    'Belum Bayar': 'bg-rose-100 text-rose-600'
+                };
+                statusBadge = `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${map[doc.status_bayar] || 'bg-slate-100 text-slate-500'}">${doc.status_bayar}</span>`;
             }
 
-            filteredData.forEach((lead, idx) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors group border-b border-slate-100 last:border-0";
+            const safeTitle = String(lead.title || '').replace(/'/g, "\\'");
+            const btnLabel = doc
+                ? (isProposal ? '<i class="ri-refresh-line"></i> Buat Ulang' : '<i class="ri-download-2-line"></i> Unduh Ulang')
+                : (isProposal ? '<i class="ri-file-download-line"></i> Buat Proposal' : '<i class="ri-download-2-line"></i> Unduh Invoice');
+            const actionBtnHtml = `<button onclick="downloadAdminDoc('${lead.cid}', '${isProposal ? 'proposal' : 'invoice'}', '${safeTitle}', '${lead.phone || ''}')" class="${isProposal ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600'} hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ml-auto">${btnLabel}</button>`;
 
-                const price = lead.price || 0;
-                const nominal = price ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(price) : 'Rp 0';
+            const createdDate = new Date(lead.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
 
-                const createdDate = new Date(lead.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
-                const actionBtnHtml = isProposal
-                    ? `<button onclick="downloadAdminDoc('${lead.cid}', 'proposal', '${lead.title.replace(/'/g, "\\'")}', '${lead.phone}')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"><i class="ri-file-download-line"></i> Buat Proposal</button>`
-                    : `<button onclick="downloadAdminDoc('${lead.cid}', 'invoice', '${lead.title.replace(/'/g, "\\'")}', '${lead.phone}')" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"><i class="ri-download-2-line"></i> Unduh Invoice</button>`;
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 transition-colors group border-b border-slate-100 last:border-0";
+            tr.innerHTML = `
+                <td class="py-4 px-5 text-center text-slate-500 font-bold">${idx + 1}</td>
+                <td class="py-4 px-5">
+                    <div class="font-bold text-slate-800">${lead.title}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">${lead.industry}</div>
+                </td>
+                <td class="py-4 px-5 text-sm font-semibold text-slate-600">${createdDate}</td>
+                <td class="py-4 px-5 text-sm font-bold text-slate-700">${nominal}</td>
+                <td class="py-4 px-5">${statusBadge}</td>
+                <td class="py-4 px-5"><div class="flex justify-end">${actionBtnHtml}</div></td>
+            `;
+            tbody.appendChild(tr);
+        });
 
-                const statusBadge = isProposal
-                    ? `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500">Draft</span>`
-                    : `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600">Belum Bayar</span>`;
-
-                tr.innerHTML = `
-                    <td class="py-4 px-5 text-center text-slate-500 font-bold">${idx + 1}</td>
-                    <td class="py-4 px-5">
-                        <div class="font-bold text-slate-800">${lead.title}</div>
-                        <div class="text-[11px] text-slate-400 mt-0.5">${lead.industry}</div>
-                    </td>
-                    <td class="py-4 px-5 text-sm font-semibold text-slate-600">${createdDate}</td>
-                    <td class="py-4 px-5 text-sm font-bold text-slate-700">${nominal}</td>
-                    <td class="py-4 px-5">${statusBadge}</td>
-                    <td class="py-4 px-5 flex justify-end">
-                        ${actionBtnHtml}
-                    </td>
-                `;
-                tbody.appendChild(tr);
+        document.getElementById('adminSearch')?.addEventListener('input', function (e) {
+            const term = e.target.value.toLowerCase();
+            const rows = tbody.querySelectorAll('tr');
+            let count = 0;
+            rows.forEach(row => {
+                if (row.innerText.toLowerCase().includes(term)) {
+                    row.style.display = '';
+                    count++;
+                } else {
+                    row.style.display = 'none';
+                }
             });
-
-            document.getElementById('adminSearch')?.addEventListener('input', function (e) {
-                const term = e.target.value.toLowerCase();
-                const rows = tbody.querySelectorAll('tr');
-                let count = 0;
-                rows.forEach(row => {
-                    if (row.innerText.toLowerCase().includes(term)) {
-                        row.style.display = '';
-                        count++;
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-                document.getElementById('adminTotalCount').innerText = count;
-            });
-        }
+            document.getElementById('adminTotalCount').innerText = count;
+        });
     } catch (e) {
         console.error("Gagal memuat data administrasi:", e);
     }
 }
 
-function downloadAdminDoc(cid, type, title, phone) {
+async function downloadAdminDoc(cid, type, title, phone) {
+    await loadAdminCatalog();
+
     document.getElementById('pdfCid').value = cid;
     document.getElementById('pdfJenis').value = type;
     document.getElementById('pdfClientName').value = title;
     document.getElementById('pdfPhone').value = phone || '';
-
     document.getElementById('pdfModalTitle').innerText = 'Generate ' + (type === 'invoice' ? 'Invoice' : 'Proposal');
 
-    if (type === 'invoice') {
-        document.getElementById('pdfTerminContainer').style.display = 'block';
-    } else {
-        document.getElementById('pdfTerminContainer').style.display = 'none';
-    }
+    document.getElementById('pdfTerminContainer').style.display = (type === 'invoice') ? 'block' : 'none';
+    document.getElementById('pdfCatatan').value = '';
+    document.getElementById('pdfManualList').innerHTML = '';
+    populatePaketDropdown();
+    renderFiturCheckboxes();
+    recalcDokumenTotal();
 
     // Reset state
     document.getElementById('pdfSuccessBox').style.display = 'none';
     document.getElementById('pdfFooterActions').style.display = 'flex';
     document.getElementById('btnGeneratePdf').disabled = false;
-    document.getElementById('btnGeneratePdf').innerHTML = '<i class="ri-printer-line"></i> Generate PDF';
+    document.getElementById('btnGeneratePdf').innerHTML = '<i class="ri-printer-line"></i> Generate & Unduh PDF';
 
     document.getElementById('pdfModal').style.display = 'flex';
 }
@@ -1531,57 +1751,64 @@ function closePdfModal() {
 
 async function generatePdf() {
     const btn = document.getElementById('btnGeneratePdf');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="ri-loader-4-line animate-spin"></i> Memproses...';
-
     const cid = document.getElementById('pdfCid').value;
     const jenis = document.getElementById('pdfJenis').value;
     const id_layanan = document.getElementById('pdfPaket').value;
     const termin = document.getElementById('pdfTermin').value;
+    const catatan = document.getElementById('pdfCatatan').value;
 
-    const formData = new FormData();
-    formData.append('cid', cid);
-    formData.append('jenis', jenis);
-    formData.append('id_layanan', id_layanan);
-    formData.append('termin', termin);
+    if (!id_layanan) {
+        alert('Pilih paket layanan terlebih dahulu.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ri-loader-4-line animate-spin"></i> Memproses...';
 
     try {
-        const response = await fetch('backend/generate_pdf.php', {
+        const response = await fetch('backend/crm_api.php?action=save_dokumen', {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cid: cid, jenis: jenis, id_layanan: id_layanan, termin: termin, catatan: catatan, fitur: collectFitur() })
         });
         const result = await response.json();
 
-        if (result.status === 'success') {
-            document.getElementById('pdfSuccessBox').style.display = 'block';
-            document.getElementById('pdfFooterActions').style.display = 'none';
-            document.getElementById('pdfSuccessDocNo').innerText = result.no_dokumen;
+        if (result.status !== 'success') {
+            throw new Error(result.message || 'Gagal menyimpan dokumen');
+        }
 
-            const link = document.getElementById('pdfDownloadLink');
-            link.href = result.file_url;
+        lastGeneratedDoc = result.dokumen;
 
-            // simpan link ke button wa
-            const waBtn = document.getElementById('pdfWaLink');
-            waBtn.dataset.url = window.location.origin + window.location.pathname.replace('index.php', '') + result.file_url;
-            waBtn.dataset.jenis = jenis;
+        // Bangun & unduh PDF di sisi klien (layout ada di dokumen_template.js)
+        if (jenis === 'invoice') {
+            buildInvoicePdf(result.dokumen);
         } else {
-            alert('Gagal generate: ' + result.message);
-            btn.disabled = false;
-            btn.innerHTML = '<i class="ri-printer-line"></i> Generate PDF';
+            buildProposalPdf(result.dokumen);
+        }
+
+        document.getElementById('pdfSuccessBox').style.display = 'block';
+        document.getElementById('pdfFooterActions').style.display = 'none';
+        document.getElementById('pdfSuccessDocNo').innerText = result.dokumen.no_dokumen;
+
+        // Refresh tabel administrasi supaya nominal & status ikut berubah
+        if (document.getElementById('adminTableBody')) {
+            initAdministrasi(jenis === 'invoice' ? 'administrasi_invoice' : 'administrasi_proposal');
         }
     } catch (e) {
-        alert('Gagal menghubungi server.');
+        alert('Gagal generate dokumen: ' + e.message);
         btn.disabled = false;
-        btn.innerHTML = '<i class="ri-printer-line"></i> Generate PDF';
+        btn.innerHTML = '<i class="ri-printer-line"></i> Generate & Unduh PDF';
     }
 }
 
-function sendWaPdf() {
-    const btn = document.getElementById('pdfWaLink');
-    const url = btn.dataset.url;
-    const jenis = btn.dataset.jenis;
-    const phoneRaw = document.getElementById('pdfPhone').value;
+function redownloadDokumen() {
+    if (!lastGeneratedDoc) return;
+    if (lastGeneratedDoc.jenis === 'Invoice') buildInvoicePdf(lastGeneratedDoc);
+    else buildProposalPdf(lastGeneratedDoc);
+}
 
+function sendWaPdf() {
+    const phoneRaw = document.getElementById('pdfPhone').value;
     let phone = phoneRaw ? phoneRaw.replace(/\D/g, '') : '';
     if (phone.startsWith('0')) {
         phone = '62' + phone.substring(1);
@@ -1592,8 +1819,11 @@ function sendWaPdf() {
         return;
     }
 
-    let text = `Halo Bapak/Ibu, berikut kami lampirkan ${jenis.toUpperCase()} untuk sistem Anda: \n${url}\n\nTerima kasih.`;
+    const doc = lastGeneratedDoc;
+    const jenis = doc ? doc.jenis : document.getElementById('pdfJenis').value;
+    const no = doc ? doc.no_dokumen : '(dokumen belum dibuat)';
+    const total = doc ? formatRupiah(doc.total_tagihan) : '-';
 
-    let waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
-    window.open(waUrl, '_blank');
+    const text = `Halo Bapak/Ibu, berikut kami lampirkan ${String(jenis).toUpperCase()} ${no} dengan total ${total}. Dokumen PDF sudah kami kirimkan, silakan dicek. Terima kasih.`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
 }
