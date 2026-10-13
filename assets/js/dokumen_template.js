@@ -55,6 +55,12 @@ const DOKUMEN_BRANDS = {
 let DOKUMEN_BRAND_ID = 'anitech';
 const DOKUMEN_PERUSAHAAN = DOKUMEN_BRANDS[DOKUMEN_BRAND_ID];
 
+// Brand diambil dari settings backend bila tersedia; kalau tidak, pakai default di atas.
+function dokumenBrandsMap() {
+    const s = (typeof window !== 'undefined' && window.APP_SETTINGS && window.APP_SETTINGS.brands);
+    return (s && typeof s === 'object' && Object.keys(s).length) ? s : DOKUMEN_BRANDS;
+}
+
 function dokumenFormatRupiah(n) {
     return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0));
 }
@@ -75,7 +81,7 @@ function dokumenLabelStatus(s) {
 // --- Logo loader: WEBP -> canvas -> PNG dataURL (agar kompatibel dgn jsPDF) ---
 let _dokumenLogoCache = {};
 function dokumenLoadLogo(brandId) {
-    const brand = DOKUMEN_BRANDS[brandId];
+    const brand = dokumenBrandsMap()[brandId];
     if (!brand) return Promise.resolve(null);
     const cache = _dokumenLogoCache[brand.logo];
     if (cache !== undefined) return Promise.resolve(cache);
@@ -110,7 +116,7 @@ function dokumenFilename(doc) {
 async function dokumenRender(doc, kind) {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'pt', 'a4');
-    const P = DOKUMEN_BRANDS[DOKUMEN_BRAND_ID];
+    const P = dokumenBrandsMap()[DOKUMEN_BRAND_ID] || DOKUMEN_BRANDS.anitech;
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const M = 40;

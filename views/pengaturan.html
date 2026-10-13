@@ -16,8 +16,8 @@
                     <div class="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-2xl">
                         <i class="ri-radar-fill"></i>
                     </div>
-                    <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Scraper Utama
+                    <span id="statusApifyBadge" class="px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-slate-400 animate-pulse"></span> Memuat...
                     </span>
                 </div>
                 <h3 class="font-bold text-lg text-slate-800">Apify API (Google Maps Scraper)</h3>
@@ -45,18 +45,24 @@
                     <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl">
                         <i class="ri-sparkling-fill"></i>
                     </div>
-                    <span class="px-3 py-1 bg-purple-50 text-purple-600 text-xs font-bold rounded-full">
-                        AI Copywriter
+                    <span id="statusAiBadge" class="px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-slate-400 animate-pulse"></span> Memuat...
                     </span>
                 </div>
-                <h3 class="font-bold text-lg text-slate-800">APMix AI (claude-sonnet-4-6-free)</h3>
+                <h3 class="font-bold text-lg text-slate-800">AI Copywriter</h3>
                 <p class="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                    Digunakan untuk membuat draf pesan pendekatan WhatsApp (*sales pitch*) secara otomatis yang dipersonalisasi dengan kebutuhan UMKM.
+                    Digunakan untuk membuat draf pesan pendekatan WhatsApp (<em>sales pitch</em>) secara otomatis yang dipersonalisasi dengan kebutuhan UMKM.
                 </p>
 
                 <div class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Model Aktif</div>
+                    <div class="text-xs font-mono font-semibold text-slate-700" id="statusAiModel">-</div>
+                    <div class="text-[11px] text-slate-400 mt-1" id="statusAiBaseUrl">-</div>
+                </div>
+
+                <div class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                     <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Lokasi Setting</div>
-                    <div class="text-xs font-mono font-semibold text-slate-700">File: <code>.env</code> &rarr; <code>AI_API_KEY</code></div>
+                    <div class="text-xs font-mono font-semibold text-slate-700">File: <code>.env</code> &rarr; <code>AI_API_KEY</code>, <code>AI_MODEL</code></div>
                 </div>
             </div>
 
@@ -69,11 +75,107 @@
 
     </div>
 
+    <!-- PROFIL PERUSAHAAN & BRANDING (dinamis dari app_settings) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- BRANDING -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i class="ri-palette-line text-blue-600"></i> Branding Aplikasi
+                </h3>
+                <span class="text-[11px] font-semibold text-slate-400">app_settings · branding</span>
+            </div>
+            <dl id="setBrandingList" class="text-sm flex flex-col"></dl>
+        </div>
+
+        <!-- COMPANY -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i class="ri-building-2-line text-indigo-600"></i> Profil Perusahaan
+                </h3>
+                <span class="text-[11px] font-semibold text-slate-400">app_settings · company</span>
+            </div>
+            <dl id="setCompanyList" class="text-sm flex flex-col"></dl>
+        </div>
+
+    </div>
+
+    <!-- BRANDS -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <i class="ri-price-tag-3-line text-emerald-600"></i> Brand & Rekening
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400">app_settings · brands</span>
+        </div>
+        <div id="setBrandCards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- DOKUMEN DEFAULT + LOKASI -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i class="ri-file-list-3-line text-amber-600"></i> Default Dokumen
+                </h3>
+                <span class="text-[11px] font-semibold text-slate-400">app_settings · dokumen_defaults</span>
+            </div>
+            <dl id="setDokumenList" class="text-sm flex flex-col"></dl>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i class="ri-map-pin-2-line text-rose-600"></i> Lokasi Pencarian
+                </h3>
+                <span class="text-[11px] font-semibold text-slate-400">app_settings · lokasi</span>
+            </div>
+            <dl id="setLokasiList" class="text-sm flex flex-col mb-3"></dl>
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Riwayat Kota</div>
+            <div id="setLokasiChips" class="flex flex-wrap gap-2"></div>
+        </div>
+
+    </div>
+
+    <!-- KATEGORI INDUSTRI -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <i class="ri-apps-2-line text-purple-600"></i> Kategori Industri
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400">tbl_kategori_industri</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                        <th class="py-2 pr-4">No</th>
+                        <th class="py-2 pr-4">Ikon</th>
+                        <th class="py-2 pr-4">Nama</th>
+                        <th class="py-2">Urutan</th>
+                    </tr>
+                </thead>
+                <tbody id="setKategoriBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+        <i class="ri-information-line text-blue-500 mt-0.5"></i>
+        <p class="text-[11px] text-blue-700 font-medium">Data di atas bersumber dari database (<code>app_settings</code> &amp; <code>tbl_kategori_industri</code>) dan saat ini hanya dapat dilihat. Halaman ubah (edit) menyusul.</p>
+    </div>
+
     <!-- DATABASE & SERVER STATUS -->
     <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
-            <i class="ri-database-2-line text-blue-600"></i> Status Lingkungan (Node.js & MySQL)
-        </h3>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <i class="ri-database-2-line text-blue-600"></i> Status Lingkungan (Node.js & MySQL)
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400">Diperbarui otomatis dari server</span>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
@@ -81,22 +183,27 @@
                 <div class="font-bold text-slate-700 flex items-center gap-2">
                     <i class="ri-nodejs-line text-emerald-500 text-lg"></i> Node.js & TypeScript
                 </div>
-                <div class="text-[11px] text-slate-500 mt-1">Express.js (Port: 3000)</div>
+                <div class="text-[11px] text-slate-500 mt-1" id="statusRuntimeDetail">Express.js (Port: 3000)</div>
             </div>
 
             <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <div class="text-xs font-bold text-slate-400 mb-1">Database Engine</div>
                 <div class="font-bold text-slate-700 flex items-center gap-2">
-                    <i class="ri-server-line text-blue-500 text-lg"></i> MySQL / MariaDB
+                    <i class="ri-server-line text-blue-500 text-lg"></i> <span id="statusDbEngine">MySQL / MariaDB</span>
                 </div>
-                <div class="text-[11px] text-slate-500 mt-1">Database: <code>leadscout</code></div>
+                <div class="text-[11px] text-slate-500 mt-1" id="statusDbDetail">-</div>
             </div>
 
             <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div class="text-xs font-bold text-slate-400 mb-1">Default Akun Admin</div>
-                <div class="font-bold text-slate-700">anitech</div>
-                <div class="text-[11px] text-slate-500 mt-1">Pass: <code>nimenimasi</code></div>
+                <div class="text-xs font-bold text-slate-400 mb-1">Akun & Keamanan</div>
+                <div class="font-bold text-slate-700">Administrator</div>
+                <div class="text-[11px] text-slate-500 mt-1">Kredensial ditentukan saat seeding (tidak ditampilkan demi keamanan).</div>
             </div>
+        </div>
+
+        <div class="mt-4 flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+            <i class="ri-shield-keyhole-line text-amber-500 mt-0.5"></i>
+            <p class="text-[11px] text-amber-700 font-medium">Token/secret (Apify & AI) hanya disimpan di file <code>.env</code> dan tidak pernah ditampilkan atau dikirim ke browser.</p>
         </div>
     </div>
 

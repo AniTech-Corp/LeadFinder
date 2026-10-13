@@ -11,8 +11,8 @@
             <div class="relative">
                 <i class="ri-calendar-2-line absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
                 <select id="dash_period_filter" class="pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 appearance-none outline-none cursor-pointer">
-                    <option value="today" selected>Hari Ini</option>
-                    <option value="all">Semua Waktu</option>
+                    <option value="today">Hari Ini</option>
+                    <option value="all" selected>Semua Waktu</option>
                     <option value="year_this">Tahun Ini</option>
                     <option value="year_last">Tahun Lalu</option>
                     <optgroup label="Bulan (Tahun Ini)">
@@ -110,107 +110,7 @@
                 <button class="text-sm font-semibold text-blue-500 hover:text-blue-600">Lihat Detail</button>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <!-- Kuliner -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-restaurant-line"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Kuliner</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Kuliner">0</div>
-                    </div>
-                </div>
-                <!-- Fashion -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-shopping-bag-3-line"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Fashion</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Fashion">0</div>
-                    </div>
-                </div>
-                <!-- Kecantikan -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-sparkling-fill"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Kecantikan</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Kecantikan">0</div>
-                    </div>
-                </div>
-                <!-- Laundry -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-t-shirt-line"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Laundry</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Laundry">0</div>
-                    </div>
-                </div>
-                <!-- Toko Retail -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-store-3-line"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Toko Retail</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Toko Retail">0</div>
-                    </div>
-                </div>
-                <!-- Florist -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-teal-100 text-teal-500 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-plant-line"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Florist</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Florist">0</div>
-                    </div>
-                </div>
-                <!-- Catering -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-cup-line"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Catering</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Catering">0</div>
-                    </div>
-                </div>
-                <!-- Percetakan -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-printer-line"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Percetakan</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Percetakan">0</div>
-                    </div>
-                </div>
-                <!-- Lainnya -->
-                <div
-                    class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                    <div
-                        class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        <i class="ri-more-fill"></i></div>
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Lainnya</div>
-                        <div class="text-lg font-extrabold text-slate-700" id="dash_cat_Lainnya">0</div>
-                    </div>
-                </div>
-            </div>
+            <div id="dashCategoryGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
         </div>
 
         <!-- STATISTIK PRIORITAS -->
