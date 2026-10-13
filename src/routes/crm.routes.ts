@@ -210,4 +210,242 @@ router.get('/dashboard-stats', async (req: Request, res: Response): Promise<void
   }
 });
 
+// GET /api/crm/catalog - Katalog paket layanan + master fitur opsional
+router.get('/catalog', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    if (!pool) {
+      res.json({ status: 'success', katalog: [], fitur_opsional: [] });
+      return;
+    }
+    const [katalog]: [any[], any] = await pool.query(
+      'SELECT id_layanan, nama_paket, deskripsi_fitur, estimasi_hari, harga FROM tbl_katalog_layanan ORDER BY id_layanan ASC'
+    );
+    const [fitur]: [any[], any] = await pool.query(
+      'SELECT id_fitur, nama_fitur, harga, kategori FROM tbl_fitur_opsional WHERE is_aktif = 1 ORDER BY kategori ASC, id_fitur ASC'
+    );
+    res.json({ status: 'success', katalog, fitur_opsional: fitur });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// GET /api/crm/dokumen - Daftar dokumen Proposal/Invoice untuk tabel administrasi
+router.get('/dokumen', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    if (!pool) {
+      res.json({ status: 'success', data: [] });
+      return;
+    }
+    const [rows]: [any[], any] = await pool.query(
+      `SELECT d.no_dokumen, d.cid, d.jenis, d.id_layanan, d.rincian_fitur, d.catatan,
+              d.total_tagihan, d.status_bayar, d.tanggal_cetak,
+              l.title, l.industry, l.address, l.phone
+       FROM tbl_dokumen d
+       LEFT JOIN leads l ON l.cid = d.cid
+       ORDER BY d.tanggal_cetak DESC`
+    );
+    res.json({ status: 'success', data: rows });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// POST /api/crm/dokumen - Simpan Proposal/Invoice (rincian dihitung ulang & disimpan di server)
+// Bila body berisi `no_dokumen` -> mode EDIT (UPDATE baris yang sama, tidak membuat dokumen baru).
+router.post('/dokumen', async (req: Request, res: Response): Promise<void> => {
+  const input = req.body || {};
+  const cid = input.cid || '';
+  const jenis = String(input.jenis || '').toLowerCase();
+  const idLayanan = input.id_layanan ?? '';
+  const termin = input.termin || 'full';
+  const catatan = String(input.catatan || '').trim();
+  const fiturInput: any[] = Array.isArray(input.fitur) ? input.fitur : [];
+
+  // Field rincian (diskon/PPN/qty/brand/jatuh tempo/nomor seri) kini ikut disimpan.
+  const qtyPaket = parseInt(input.qty, 10) || 1;
+  const satuanPaket = String(input.satuan || 'Paket').trim() || 'Paket';
+  const diskon = parseFloat(input.diskon) || 0;
+  const ppnAktif = input.ppn_aktif !== false;
+  const ppnPersen = ppnAktif ? (parseFloat(input.ppn_persen) || 0) : 0;
+  const jatuhTempo = input.jatuh_tempo || null;
+  const brandId = String(input.brand || 'anitech');
+  const editNoDokumen = input.no_dokumen ? String(input.no_dokumen) : null;
+  const noSeriInput = input.no_seri ? String(input.no_seri) : null;
+
+  if (!cid || !['proposal', 'invoice'].includes(jenis) || !idLayanan) {
+    res.status(400).json({ status: 'error', message: 'Parameter tidak lengkap' });
+    return;
+  }
+
+  try {
+    if (!pool) {
+      res.status(500).json({ status: 'error', message: 'Database belum terhubung.' });
+      return;
+    }
+
+    // 1. Ambil data klien
+    const [leadRows]: [any[], any] = await pool.query('SELECT * FROM leads WHERE cid = ?', [cid]);
+    const lead = leadRows[0];
+    if (!lead) {
+      res.status(404).json({ status: 'error', message: 'Klien tidak ditemukan' });
+      return;
+    }
+
+    // 2. Ambil data paket
+    const [layananRows]: [any[], any] = await pool.query(
+      'SELECT * FROM tbl_katalog_layanan WHERE id_layanan = ?',
+      [idLayanan]
+    );
+    const layanan = layananRows[0];
+    if (!layanan) {
+      res.status(404).json({ status: 'error', message: 'Paket layanan tidak ditemukan' });
+      return;
+    }
+
+    // 3. Resolve fitur opsional: master diambil harganya dari DB, manual dari input
+    const rincianFitur: any[] = [];
+    let subtotalFitur = 0;
+    for (const f of fiturInput) {
+      let idFitur: number | null = null;
+      let nama = '';
+      let hargaF = 0;
+      let manual = false;
+
+      if (f && f.id_fitur) {
+        const [fr]: [any[], any] = await pool.query(
+          'SELECT id_fitur, nama_fitur, harga FROM tbl_fitur_opsional WHERE id_fitur = ?',
+          [f.id_fitur]
+        );
+        const row = fr[0];
+        if (!row) continue;
+        idFitur = parseInt(row.id_fitur, 10);
+        nama = row.nama_fitur;
+        hargaF = parseFloat(row.harga) || 0;
+      } else if (f && f.nama) {
+        nama = String(f.nama).trim();
+        hargaF = parseFloat(f.harga) || 0;
+        manual = true;
+      } else {
+        continue;
+      }
+
+      const qtyF = parseInt(f.qty, 10) || 1;
+      const satuanF = (f.satuan && String(f.satuan).trim()) || 'Paket';
+      const lineTotal = hargaF * qtyF;
+      rincianFitur.push({ id_fitur: idFitur, nama, harga: hargaF, qty: qtyF, satuan: satuanF, manual, total: lineTotal });
+      subtotalFitur += lineTotal;
+    }
+
+    // 4. Hitung rincian harga (authoritative di server)
+    const hargaPaket = parseFloat(layanan.harga) || 0;
+    const subtotalPaket = hargaPaket * qtyPaket;
+    const subtotal = subtotalPaket + subtotalFitur;
+    const ppnNominal = Math.round(((subtotal - diskon) * ppnPersen) / 100);
+    const grandTotal = subtotal - diskon + ppnNominal;
+
+    const jenisLabel = jenis === 'invoice' ? 'Invoice' : 'Proposal';
+    let statusBayar = 'Belum Bayar';
+    let tagihan = grandTotal;
+    if (jenis === 'invoice' && termin === 'dp') {
+      tagihan = Math.round(grandTotal * 0.5);
+      statusBayar = 'DP';
+    }
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const ym = `${now.getFullYear()}${pad(now.getMonth() + 1)}`;
+    const noDokumen = editNoDokumen || `${jenis.toUpperCase().slice(0, 3)}-${ym}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const tanggal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const rincianObj = {
+      paket: {
+        id_layanan: parseInt(String(idLayanan), 10),
+        nama: layanan.nama_paket,
+        deskripsi: layanan.deskripsi_fitur,
+        estimasi_hari: layanan.estimasi_hari,
+        harga: hargaPaket,
+        qty: qtyPaket,
+        satuan: satuanPaket,
+      },
+      fitur: rincianFitur,
+      termin,
+      subtotal_paket: subtotalPaket,
+      subtotal_fitur: subtotalFitur,
+      subtotal,
+      diskon,
+      ppn_aktif: ppnAktif,
+      ppn_persen: ppnPersen,
+      ppn_nominal: ppnNominal,
+      grand_total: grandTotal,
+      no_seri: noSeriInput,
+      brand: brandId,
+      jatuh_tempo: jatuhTempo,
+    };
+    const rincianJson = JSON.stringify(rincianObj);
+
+    // 5. Simpan/Perbarui record dokumen di tbl_dokumen
+    if (editNoDokumen) {
+      const [existing]: [any[], any] = await pool.query(
+        'SELECT no_dokumen FROM tbl_dokumen WHERE no_dokumen = ?',
+        [editNoDokumen]
+      );
+      if (existing && existing.length) {
+        await pool.query(
+          `UPDATE tbl_dokumen
+              SET cid = ?, jenis = ?, id_layanan = ?, rincian_fitur = ?, catatan = ?,
+                  total_tagihan = ?, status_bayar = ?, tanggal_cetak = ?
+            WHERE no_dokumen = ?`,
+          [cid, jenisLabel, idLayanan, rincianJson, catatan || null, tagihan, statusBayar, tanggal, editNoDokumen]
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO tbl_dokumen (no_dokumen, cid, jenis, id_layanan, rincian_fitur, catatan, total_tagihan, status_bayar, tanggal_cetak)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [editNoDokumen, cid, jenisLabel, idLayanan, rincianJson, catatan || null, tagihan, statusBayar, tanggal]
+        );
+      }
+    } else {
+      await pool.query(
+        `INSERT INTO tbl_dokumen (no_dokumen, cid, jenis, id_layanan, rincian_fitur, catatan, total_tagihan, status_bayar, tanggal_cetak)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [noDokumen, cid, jenisLabel, idLayanan, rincianJson, catatan || null, tagihan, statusBayar, tanggal]
+      );
+    }
+
+    res.json({
+      status: 'success',
+      dokumen: {
+        no_dokumen: noDokumen,
+        no_seri: noSeriInput,
+        brand: brandId,
+        tanggal,
+        jenis: jenisLabel,
+        termin,
+        status_bayar: statusBayar,
+        catatan,
+        total_tagihan: tagihan,
+        subtotal,
+        subtotal_paket: subtotalPaket,
+        subtotal_fitur: subtotalFitur,
+        diskon,
+        ppn_persen: ppnPersen,
+        ppn_nominal: ppnNominal,
+        grand_total: grandTotal,
+        jatuh_tempo: jatuhTempo,
+        paket: {
+          id_layanan: parseInt(String(idLayanan), 10),
+          nama: layanan.nama_paket,
+          deskripsi: layanan.deskripsi_fitur,
+          estimasi_hari: layanan.estimasi_hari,
+          harga: hargaPaket,
+        },
+        fitur: rincianFitur,
+        klien: { cid: lead.cid, nama: lead.title, alamat: lead.address, telepon: lead.phone },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 export default router;

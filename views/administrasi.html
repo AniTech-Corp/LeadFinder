@@ -36,7 +36,7 @@
                         <th class="py-4 px-5">Tanggal Masuk</th>
                         <th class="py-4 px-5">Total Nominal</th>
                         <th class="py-4 px-5">Status</th>
-                        <th class="py-4 px-5 text-right">Aksi</th>
+                        <th class="py-4 px-5 text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="adminTableBody" class="text-sm">
@@ -47,63 +47,146 @@
     </div>
 </div>
 
-<!-- Modal Generator PDF -->
+<!-- Modal Generator Dokumen (Proposal / Invoice) -->
 <div id="pdfModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-50 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl w-[500px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div class="bg-white rounded-2xl w-[640px] max-w-[95vw] overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
         <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
             <h3 class="font-bold text-slate-800" id="pdfModalTitle">Generate Dokumen</h3>
             <button onclick="closePdfModal()" class="text-slate-400 hover:text-rose-500 transition-colors">
                 <i class="ri-close-line text-2xl"></i>
             </button>
         </div>
-        <div class="p-6 overflow-y-auto">
+
+        <div class="p-6 overflow-y-auto flex-1">
             <input type="hidden" id="pdfCid">
             <input type="hidden" id="pdfJenis">
             <input type="hidden" id="pdfPhone">
-            
+
             <div class="mb-4">
                 <label class="block text-xs font-bold text-slate-500 mb-1">Nama Klien</label>
                 <input type="text" id="pdfClientName" disabled class="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 cursor-not-allowed">
             </div>
-            
+
             <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Paket Layanan</label>
-                <select id="pdfPaket" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
-                    <option value="1">Web Company Profile Basic (Rp 2.500.000)</option>
-                    <option value="2">Web Company Profile Pro (Rp 5.000.000)</option>
-                    <option value="3">Toko Online (E-Commerce) (Rp 8.500.000)</option>
-                    <option value="4">Landing Page Sales (Rp 1.500.000)</option>
-                    <option value="5">Sistem Kasir (POS) Cloud (Rp 12.000.000)</option>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Paket Web / Layanan</label>
+                <select id="pdfPaket" onchange="recalcDokumenTotal()" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                    <option value="">Memuat paket...</option>
                 </select>
+                <p id="pdfPaketDesc" class="text-[11px] text-slate-400 mt-1.5 leading-snug"></p>
+                <div class="flex items-center gap-3 mt-2">
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500">Qty</label>
+                        <input type="number" min="1" value="1" id="pdfQtyPaket" oninput="recalcDokumenTotal()" class="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-1">
+                        <label class="text-[11px] font-semibold text-slate-500">Satuan</label>
+                        <input type="text" value="Paket" id="pdfSatuanPaket" oninput="recalcDokumenTotal()" class="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
             </div>
-            
-            <div class="mb-6" id="pdfTerminContainer">
+
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-xs font-bold text-slate-500">Fitur Opsional (sesuai keinginan klien)</label>
+                    <button type="button" onclick="addManualFeature()" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                        <i class="ri-add-line"></i> Fitur manual
+                    </button>
+                </div>
+                <div id="pdfFiturList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+                    <!-- Injected via JS -->
+                </div>
+                <div id="pdfManualList" class="flex flex-col gap-2 mt-2">
+                    <!-- Fitur manual (nama + harga bebas) -->
+                </div>
+            </div>
+
+            <div class="mb-4" id="pdfTerminContainer">
                 <label class="block text-xs font-bold text-slate-500 mb-1">Termin Pembayaran (Khusus Invoice)</label>
-                <select id="pdfTermin" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                <select id="pdfTermin" onchange="recalcDokumenTotal()" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
                     <option value="dp">Uang Muka (DP) 50%</option>
-                    <option value="full">Lunas (Full Payment)</option>
+                    <option value="full">Bayar Penuh (Tanpa DP)</option>
                 </select>
             </div>
-            
-            <div id="pdfSuccessBox" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 text-center">
+
+            <div class="mb-4" id="pdfBrandContainer">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Brand / Merek (Khusus Invoice)</label>
+                <select id="pdfBrand" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                    <option value="anitech">AniTech</option>
+                    <option value="klir_by_anitech">KLIR by AniTech</option>
+                    <option value="klir">KLIR</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Diskon (Rp)</label>
+                    <input type="number" min="0" value="0" id="pdfDiskon" oninput="recalcDokumenTotal()" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs font-bold text-slate-500">PPN (%)</label>
+                        <label class="flex items-center gap-1 text-[11px] font-semibold text-slate-500 cursor-pointer">
+                            <input type="checkbox" id="pdfPpnAktif" checked onchange="onPpnToggle()" class="rounded border-slate-300"> Aktif
+                        </label>
+                    </div>
+                    <input type="number" min="0" value="11" id="pdfPpnPersen" oninput="recalcDokumenTotal()" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Jatuh Tempo</label>
+                <input type="date" id="pdfJatuhTempo" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Catatan / Permintaan Khusus</label>
+                <textarea id="pdfCatatan" rows="2" placeholder="Contoh: warna tema biru, butuh halaman katalog produk, dsb." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500 resize-none"></textarea>
+            </div>
+
+            <!-- RINGKASAN HARGA -->
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <div class="flex items-center justify-between text-[13px] text-slate-600 mb-1.5">
+                    <span>Subtotal</span>
+                    <span id="pdfSumSubtotal" class="font-semibold text-slate-700">Rp 0</span>
+                </div>
+                <div class="flex items-center justify-between text-[13px] text-slate-600 mb-1.5">
+                    <span>Diskon</span>
+                    <span id="pdfSumDiskon" class="font-semibold text-slate-700">Rp 0</span>
+                </div>
+                <div class="flex items-center justify-between text-[13px] text-slate-600 mb-1.5">
+                    <span id="pdfSumPpnLabel">PPN 11%</span>
+                    <span id="pdfSumPpn" class="font-semibold text-slate-700">Rp 0</span>
+                </div>
+                <div class="flex items-center justify-between border-t border-slate-200 pt-2 mt-2">
+                    <span class="text-sm font-bold text-slate-700">Total Tagihan</span>
+                    <span id="pdfSumGrand" class="text-base font-extrabold text-primary">Rp 0</span>
+                </div>
+                <div id="pdfSumTagihanRow" class="flex items-center justify-between mt-2 hidden">
+                    <span class="text-[13px] font-bold text-emerald-600" id="pdfSumTagihanLabel">Tagihan Aktif (DP 50%)</span>
+                    <span id="pdfSumTagihan" class="text-sm font-extrabold text-emerald-600">Rp 0</span>
+                </div>
+            </div>
+
+            <!-- SUCCESS BOX -->
+            <div id="pdfSuccessBox" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-4 mt-4 text-center">
                 <i class="ri-checkbox-circle-fill text-3xl text-emerald-500 mb-2 block"></i>
-                <div class="text-sm font-bold text-emerald-700 mb-1">Dokumen Berhasil Dibuat!</div>
+                <div class="text-sm font-bold text-emerald-700 mb-1">Dokumen Berhasil Dibuat & Diunduh!</div>
                 <div class="text-xs text-emerald-600 mb-4" id="pdfSuccessDocNo">INV-202610-1234</div>
                 <div class="flex gap-2 justify-center">
-                    <a href="#" id="pdfDownloadLink" target="_blank" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
-                        <i class="ri-download-2-line"></i> Unduh PDF
-                    </a>
+                    <button id="pdfRedownloadBtn" onclick="redownloadDokumen()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
+                        <i class="ri-download-2-line"></i> Unduh Ulang
+                    </button>
                     <button id="pdfWaLink" onclick="sendWaPdf()" class="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
                         <i class="ri-whatsapp-line"></i> Kirim via WA
                     </button>
                 </div>
             </div>
-
         </div>
+
         <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2" id="pdfFooterActions">
             <button onclick="closePdfModal()" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-semibold text-sm transition-colors">Batal</button>
             <button onclick="generatePdf()" id="btnGeneratePdf" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg shadow-sm transition-colors flex items-center gap-2">
-                <i class="ri-printer-line"></i> Generate PDF
+                <i class="ri-printer-line"></i> Generate & Unduh PDF
             </button>
         </div>
     </div>

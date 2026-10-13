@@ -1,7 +1,28 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { pool } from '../config/db.js';
 
 dotenv.config();
+
+/**
+ * Ambil template fallback dari tabel app_settings (section=branding).
+ * Bila DB tak tersedia, kembalikan null agar pemanggil memakai template bawaan.
+ */
+async function getFallbackTemplate(): Promise<string | null> {
+  try {
+    if (!pool) return null;
+    const [rows]: [any[], any] = await pool.query(
+      "SELECT data FROM app_settings WHERE section = 'branding'"
+    );
+    if (rows[0]?.data) {
+      const branding = JSON.parse(rows[0].data);
+      if (branding.ai_fallback_template) return String(branding.ai_fallback_template);
+    }
+  } catch {
+    /* abaikan, pakai default */
+  }
+  return null;
+}
 
 export async function generateWhatsAppPitch(namaBisnis: string, missingAspects: string[] = []): Promise<string> {
   const apiKey = process.env.AI_API_KEY || process.env.OPENROUTER_API_KEY;
@@ -11,8 +32,16 @@ export async function generateWhatsAppPitch(namaBisnis: string, missingAspects: 
   const masalah = missingAspects.length === 0 ? 'aspek kehadiran digital' : missingAspects.join(' dan ');
   const solusi = missingAspects.includes('website') ? 'jasa pembuatan website profesional' : 'layanan digital marketing & optimasi';
 
-  // Fallback copywriting default
-  const fallback = `Halo, perkenalkan saya dari tim digital agency Anitech.\n\nSaya menemukan profil *${namaBisnis}* di Google Maps dan melihat potensinya sangat luar biasa!\n\nNamun saya perhatikan saat ini *${namaBisnis}* belum memaksimalkan *${masalah}*. Di era sekarang, memiliki saluran digital resmi sangat krusial untuk menarik pelanggan baru di sekitar lokasi usaha.\n\nKami memiliki solusi _${solusi}_ yang dapat membantu meningkatkan kunjungan dan omzet hingga 3x lipat. Apakah Bapak/Ibu berkenan jika saya kirimkan portofolio singkat kami?`;
+  // Fallback copywriting default (dipakai bila template dari DB tidak tersedia)
+  const defaultFallback = `Halo, perkenalkan saya dari tim digital agency Anitech.\n\nSaya menemukan profil *${namaBisnis}* di Google Maps dan melihat potensinya sangat luar biasa!\n\nNamun saya perhatikan saat ini *${namaBisnis}* belum memaksimalkan *${masalah}*. Di era sekarang, memiliki saluran digital resmi sangat krusial untuk menarik pelanggan baru di sekitar lokasi usaha.\n\nKami memiliki solusi _${solusi}_ yang dapat membantu meningkatkan kunjungan dan omzet hingga 3x lipat. Apakah Bapak/Ibu berkenan jika saya kirimkan portofolio singkat kami?`;
+
+  const template = await getFallbackTemplate();
+  const fallback = template
+    ? template
+        .replace(/\{nama\}/g, namaBisnis)
+        .replace(/\{masalah\}/g, masalah)
+        .replace(/\{solusi\}/g, solusi)
+    : defaultFallback;
 
   if (!apiKey || apiKey.startsWith('your_')) {
     return fallback;

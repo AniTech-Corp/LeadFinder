@@ -24,8 +24,8 @@
                 <i class="ri-radar-line text-3xl text-white"></i>
             </div>
             
-            <h1 class="text-2xl font-extrabold text-slate-800 text-center mb-1">Masuk ke LeadScout</h1>
-            <p class="text-sm font-medium text-slate-500 text-center mb-8">Sistem Manajemen Prospek UMKM AI</p>
+            <h1 id="loginTitle" class="text-2xl font-extrabold text-slate-800 text-center mb-1">Masuk ke LeadScout</h1>
+            <p id="loginSubtitle" class="text-sm font-medium text-slate-500 text-center mb-8">Sistem Manajemen Prospek UMKM AI</p>
             
             <div id="errorBox" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-[13px] font-semibold rounded-lg border border-red-100 flex items-start gap-2">
                 <i class="ri-error-warning-fill text-base mt-0.5"></i>
@@ -60,7 +60,22 @@
         </div>
     </div>
 
+    <script src="assets/js/settings.js"></script>
     <script>
+        // Terapkan branding dinamis (nama sistem & tagline) dari backend.
+        (async function applyLoginBranding() {
+            try {
+                if (window.loadAppSettings) await window.loadAppSettings();
+                const appName = window.getSetting('branding.app_name', 'LeadScout AI');
+                const tagline = window.getSetting('branding.app_tagline', 'Sistem Manajemen Prospek UMKM AI');
+                const titleEl = document.getElementById('loginTitle');
+                const subEl = document.getElementById('loginSubtitle');
+                if (titleEl) titleEl.innerText = 'Masuk ke ' + appName;
+                if (subEl) subEl.innerText = tagline;
+                document.title = 'Login - ' + appName;
+            } catch (e) { /* abaikan */ }
+        })();
+
         // Check if already logged in
         (async function checkAuth() {
             try {
