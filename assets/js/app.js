@@ -1500,6 +1500,28 @@ function formatRupiah(n) {
     return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0));
 }
 
+// Tanggal hari ini + n hari, format YYYY-MM-DD (untuk input date).
+function dokumenAddDays(n) {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Nomor seri provisional: INV/YYYY/MM/NNN & PRO/YYYY/MM/NNN (counter per bulan di browser).
+// CATATAN: ini belum sekuensial global; akan diganti nomor resmi saat backend aktif.
+function dokumenNomorSeri(jenis) {
+    const prefix = (jenis === 'Invoice') ? 'INV' : 'PRO';
+    const now = new Date();
+    const ym = now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0');
+    const key = 'dokumenSeri_' + prefix + '_' + ym;
+    let n = 1;
+    try {
+        n = parseInt(localStorage.getItem(key) || '0', 10) + 1;
+        localStorage.setItem(key, String(n));
+    } catch (e) { /* localStorage tidak tersedia */ }
+    return `${prefix}/${ym}/${String(n).padStart(3, '0')}`;
+}
+
 async function loadAdminCatalog() {
     if (adminCatalogLoaded && adminCatalog.katalog.length) return adminCatalog;
     try {
@@ -1548,15 +1570,23 @@ function renderFiturCheckboxes() {
         return;
     }
     adminCatalog.fitur_opsional.forEach(f => {
-        const label = document.createElement('label');
-        label.className = 'flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 hover:border-blue-300 cursor-pointer transition-colors';
-        label.innerHTML = `
-            <input type="checkbox" class="mt-0.5 fitur-op-checkbox" data-id="${f.id_fitur}" data-harga="${f.harga}" data-nama="${String(f.nama_fitur).replace(/"/g, '&quot;')}" onchange="recalcDokumenTotal()">
-            <span class="flex flex-col">
-                <span class="text-[12px] font-semibold text-slate-700 leading-tight">${f.nama_fitur}</span>
-                <span class="text-[10px] text-slate-400 mt-0.5">${f.kategori || 'Umum'} \u2022 ${formatRupiah(f.harga)}</span>
-            </span>`;
-        list.appendChild(label);
+        const row = document.createElement('div');
+        row.className = 'fitur-row p-2.5 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors';
+        row.innerHTML = `
+            <label class="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" class="mt-0.5 fitur-op-checkbox" data-id="${f.id_fitur}" data-harga="${f.harga}" data-nama="${String(f.nama_fitur).replace(/"/g, '&quot;')}" onchange="recalcDokumenTotal()">
+                <span class="flex flex-col">
+                    <span class="text-[12px] font-semibold text-slate-700 leading-tight">${f.nama_fitur}</span>
+                    <span class="text-[10px] text-slate-400 mt-0.5">${f.kategori || 'Umum'} \u2022 ${formatRupiah(f.harga)}</span>
+                </span>
+            </label>
+            <div class="flex items-center gap-2 mt-2 pl-6">
+                <label class="text-[10px] text-slate-400">Qty</label>
+                <input type="number" min="1" value="1" class="fit-qty w-14 bg-white border border-slate-200 rounded-md px-1.5 py-1 text-[11px] focus:outline-none focus:border-blue-500" oninput="recalcDokumenTotal()">
+                <label class="text-[10px] text-slate-400">Satuan</label>
+                <input type="text" value="Paket" class="fit-satuan w-24 bg-white border border-slate-200 rounded-md px-1.5 py-1 text-[11px] focus:outline-none focus:border-blue-500" oninput="recalcDokumenTotal()">
+            </div>`;
+        list.appendChild(row);
     });
 }
 
@@ -1564,10 +1594,12 @@ function addManualFeature(nama = '', harga = '') {
     const container = document.getElementById('pdfManualList');
     if (!container) return;
     const row = document.createElement('div');
-    row.className = 'manual-feature flex items-center gap-2';
+    row.className = 'manual-feature flex flex-wrap items-center gap-2';
     row.innerHTML = `
-        <input type="text" placeholder="Nama fitur manual" value="${String(nama).replace(/"/g, '&quot;')}" class="man-nama flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-blue-500">
-        <input type="number" placeholder="Harga" value="${harga}" class="man-harga w-32 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-blue-500" oninput="recalcDokumenTotal()">
+        <input type="text" placeholder="Nama fitur manual" value="${String(nama).replace(/"/g, '&quot;')}" class="man-nama flex-1 min-w-[120px] bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-blue-500">
+        <input type="number" min="1" value="1" class="man-qty w-14 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:border-blue-500" oninput="recalcDokumenTotal()">
+        <input type="text" value="Paket" class="man-satuan w-24 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:border-blue-500" oninput="recalcDokumenTotal()">
+        <input type="number" min="0" placeholder="Harga" value="${harga}" class="man-harga w-28 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-blue-500" oninput="recalcDokumenTotal()">
         <button type="button" onclick="this.closest('.manual-feature').remove(); recalcDokumenTotal();" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="ri-delete-bin-line"></i></button>`;
     container.appendChild(row);
     recalcDokumenTotal();
@@ -1575,29 +1607,73 @@ function addManualFeature(nama = '', harga = '') {
 
 function collectFitur() {
     const fitur = [];
-    document.querySelectorAll('.fitur-op-checkbox:checked').forEach(cb => {
-        fitur.push({ id_fitur: parseInt(cb.dataset.id, 10), nama: cb.dataset.nama, harga: parseFloat(cb.dataset.harga) || 0 });
+    document.querySelectorAll('.fitur-row').forEach(row => {
+        const cb = row.querySelector('.fitur-op-checkbox');
+        if (!cb || !cb.checked) return;
+        fitur.push({
+            id_fitur: parseInt(cb.dataset.id, 10),
+            nama: cb.dataset.nama,
+            harga: parseFloat(cb.dataset.harga) || 0,
+            qty: parseInt(row.querySelector('.fit-qty').value, 10) || 1,
+            satuan: (row.querySelector('.fit-satuan').value || '').trim() || 'Paket'
+        });
     });
     document.querySelectorAll('#pdfManualList .manual-feature').forEach(row => {
         const nama = row.querySelector('.man-nama').value.trim();
-        const harga = parseFloat(row.querySelector('.man-harga').value) || 0;
-        if (nama) fitur.push({ nama: nama, harga: harga, manual: true });
+        if (!nama) return;
+        fitur.push({
+            nama: nama,
+            harga: parseFloat(row.querySelector('.man-harga').value) || 0,
+            qty: parseInt(row.querySelector('.man-qty').value, 10) || 1,
+            satuan: (row.querySelector('.man-satuan').value || '').trim() || 'Paket',
+            manual: true
+        });
     });
     return fitur;
 }
 
-function recalcDokumenTotal() {
-    updatePaketDesc();
+// Hitung rincian harga (subtotal/diskon/ppn/total) di sisi klien.
+// CATATAN: backend belum menyimpan pajak/diskon (fase frontend).
+function dokumenHitung() {
     const sel = document.getElementById('pdfPaket');
     const paket = adminCatalog.katalog.find(x => String(x.id_layanan) === String(sel ? sel.value : ''));
+    const qtyPaket = parseInt((document.getElementById('pdfQtyPaket') || {}).value, 10) || 1;
+    const satuanPaket = ((document.getElementById('pdfSatuanPaket') || {}).value || '').trim() || 'Paket';
     const hargaPaket = paket ? parseFloat(paket.harga) : 0;
-    const subtotalFitur = collectFitur().reduce((s, f) => s + (parseFloat(f.harga) || 0), 0);
-    const grand = hargaPaket + subtotalFitur;
+    const subtotalPaket = hargaPaket * qtyPaket;
 
+    const fitur = collectFitur();
+    const subtotalFitur = fitur.reduce((s, f) => s + (parseFloat(f.harga) || 0) * (parseInt(f.qty, 10) || 1), 0);
+    const subtotal = subtotalPaket + subtotalFitur;
+
+    const diskon = parseFloat((document.getElementById('pdfDiskon') || {}).value) || 0;
+    const ppnAktif = document.getElementById('pdfPpnAktif') ? document.getElementById('pdfPpnAktif').checked : true;
+    const ppnPersen = ppnAktif ? (parseFloat((document.getElementById('pdfPpnPersen') || {}).value) || 0) : 0;
+    const ppnNominal = Math.round((subtotal - diskon) * ppnPersen / 100);
+    const total = subtotal - diskon + ppnNominal;
+
+    return { paket, qtyPaket, satuanPaket, hargaPaket, subtotalPaket, fitur, subtotalFitur, subtotal, diskon, ppnAktif, ppnPersen, ppnNominal, total };
+}
+
+function onPpnToggle() {
+    const aktif = document.getElementById('pdfPpnAktif').checked;
+    const inp = document.getElementById('pdfPpnPersen');
+    if (inp) {
+        inp.disabled = !aktif;
+        inp.classList.toggle('opacity-50', !aktif);
+    }
+    recalcDokumenTotal();
+}
+
+function recalcDokumenTotal() {
+    updatePaketDesc();
+    const h = dokumenHitung();
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    set('pdfSumPaket', formatRupiah(hargaPaket));
-    set('pdfSumFitur', formatRupiah(subtotalFitur));
-    set('pdfSumGrand', formatRupiah(grand));
+    set('pdfSumSubtotal', formatRupiah(h.subtotal));
+    set('pdfSumDiskon', h.diskon ? ('- ' + formatRupiah(h.diskon)) : formatRupiah(0));
+    set('pdfSumPpnLabel', 'PPN ' + h.ppnPersen + '%');
+    set('pdfSumPpn', formatRupiah(h.ppnNominal));
+    set('pdfSumGrand', formatRupiah(h.total));
 
     const jenis = document.getElementById('pdfJenis').value;
     const termin = document.getElementById('pdfTermin').value;
@@ -1606,7 +1682,7 @@ function recalcDokumenTotal() {
     if (jenis === 'invoice') {
         tagihanRow.classList.remove('hidden');
         document.getElementById('pdfSumTagihanLabel').textContent = (termin === 'dp') ? 'Tagihan Aktif (DP 50%)' : 'Tagihan Aktif (Lunas)';
-        set('pdfSumTagihan', formatRupiah(termin === 'dp' ? grand * 0.5 : grand));
+        set('pdfSumTagihan', formatRupiah(termin === 'dp' ? h.total * 0.5 : h.total));
     } else {
         tagihanRow.classList.add('hidden');
     }
@@ -1732,9 +1808,20 @@ async function downloadAdminDoc(cid, type, title, phone) {
     document.getElementById('pdfTerminContainer').style.display = (type === 'invoice') ? 'block' : 'none';
     document.getElementById('pdfCatatan').value = '';
     document.getElementById('pdfManualList').innerHTML = '';
+
+    // Reset field rincian harga (frontend-only, belum tersimpan di DB)
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    setVal('pdfQtyPaket', '1');
+    setVal('pdfSatuanPaket', 'Paket');
+    setVal('pdfDiskon', '0');
+    setVal('pdfPpnPersen', '11');
+    const ppnCb = document.getElementById('pdfPpnAktif');
+    if (ppnCb) ppnCb.checked = true;
+    setVal('pdfJatuhTempo', dokumenAddDays(14));
+
     populatePaketDropdown();
     renderFiturCheckboxes();
-    recalcDokumenTotal();
+    onPpnToggle();
 
     // Reset state
     document.getElementById('pdfSuccessBox').style.display = 'none';
@@ -1766,10 +1853,27 @@ async function generatePdf() {
     btn.innerHTML = '<i class="ri-loader-4-line animate-spin"></i> Memproses...';
 
     try {
+        const h = dokumenHitung();
+        const jatuhTempo = document.getElementById('pdfJatuhTempo').value || null;
+
         const response = await fetch('backend/crm_api.php?action=save_dokumen', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cid: cid, jenis: jenis, id_layanan: id_layanan, termin: termin, catatan: catatan, fitur: collectFitur() })
+            body: JSON.stringify({
+                cid: cid,
+                jenis: jenis,
+                id_layanan: id_layanan,
+                termin: termin,
+                catatan: catatan,
+                fitur: h.fitur,
+                // Field berikut dikirim untuk fase backend nanti (saat ini diabaikan server)
+                diskon: h.diskon,
+                ppn_aktif: h.ppnAktif,
+                ppn_persen: h.ppnPersen,
+                jatuh_tempo: jatuhTempo,
+                qty: h.qtyPaket,
+                satuan: h.satuanPaket
+            })
         });
         const result = await response.json();
 
@@ -1777,18 +1881,50 @@ async function generatePdf() {
             throw new Error(result.message || 'Gagal menyimpan dokumen');
         }
 
-        lastGeneratedDoc = result.dokumen;
+        const doc = result.dokumen;
+
+        // Susun baris rincian (deskripsi/qty/satuan/harga/total) untuk template PDF
+        const items = [{
+            deskripsi: doc.paket.nama + (doc.paket.deskripsi ? '\n' + doc.paket.deskripsi : ''),
+            qty: h.qtyPaket,
+            satuan: h.satuanPaket,
+            harga_satuan: h.hargaPaket,
+            total: h.subtotalPaket
+        }];
+        h.fitur.forEach(f => {
+            items.push({
+                deskripsi: f.nama,
+                qty: f.qty,
+                satuan: f.satuan,
+                harga_satuan: f.harga,
+                total: (parseFloat(f.harga) || 0) * (parseInt(f.qty, 10) || 1)
+            });
+        });
+
+        // Lengkapi dokumen dengan hasil perhitungan sisi klien
+        doc.items = items;
+        doc.subtotal = h.subtotal;
+        doc.diskon = h.diskon;
+        doc.ppn_persen = h.ppnPersen;
+        doc.ppn_nominal = h.ppnNominal;
+        doc.grand_total = h.total;
+        doc.total_tagihan = (jenis === 'invoice' && termin === 'dp') ? Math.round(h.total * 0.5) : h.total;
+        doc.tanggal_terbit = doc.tanggal;
+        doc.jatuh_tempo = jatuhTempo;
+        doc.no_seri = dokumenNomorSeri(doc.jenis);
+
+        lastGeneratedDoc = doc;
 
         // Bangun & unduh PDF di sisi klien (layout ada di dokumen_template.js)
         if (jenis === 'invoice') {
-            buildInvoicePdf(result.dokumen);
+            await buildInvoicePdf(doc);
         } else {
-            buildProposalPdf(result.dokumen);
+            await buildProposalPdf(doc);
         }
 
         document.getElementById('pdfSuccessBox').style.display = 'block';
         document.getElementById('pdfFooterActions').style.display = 'none';
-        document.getElementById('pdfSuccessDocNo').innerText = result.dokumen.no_dokumen;
+        document.getElementById('pdfSuccessDocNo').innerText = doc.no_seri;
 
         // Refresh tabel administrasi supaya nominal & status ikut berubah
         if (document.getElementById('adminTableBody')) {
@@ -1821,7 +1957,7 @@ function sendWaPdf() {
 
     const doc = lastGeneratedDoc;
     const jenis = doc ? doc.jenis : document.getElementById('pdfJenis').value;
-    const no = doc ? doc.no_dokumen : '(dokumen belum dibuat)';
+    const no = doc ? (doc.no_seri || doc.no_dokumen) : '(dokumen belum dibuat)';
     const total = doc ? formatRupiah(doc.total_tagihan) : '-';
 
     const text = `Halo Bapak/Ibu, berikut kami lampirkan ${String(jenis).toUpperCase()} ${no} dengan total ${total}. Dokumen PDF sudah kami kirimkan, silakan dicek. Terima kasih.`;

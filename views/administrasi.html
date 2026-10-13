@@ -73,6 +73,16 @@
                     <option value="">Memuat paket...</option>
                 </select>
                 <p id="pdfPaketDesc" class="text-[11px] text-slate-400 mt-1.5 leading-snug"></p>
+                <div class="flex items-center gap-3 mt-2">
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500">Qty</label>
+                        <input type="number" min="1" value="1" id="pdfQtyPaket" oninput="recalcDokumenTotal()" class="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-1">
+                        <label class="text-[11px] font-semibold text-slate-500">Satuan</label>
+                        <input type="text" value="Paket" id="pdfSatuanPaket" oninput="recalcDokumenTotal()" class="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
             </div>
 
             <div class="mb-4">
@@ -98,6 +108,27 @@
                 </select>
             </div>
 
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Diskon (Rp)</label>
+                    <input type="number" min="0" value="0" id="pdfDiskon" oninput="recalcDokumenTotal()" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs font-bold text-slate-500">PPN (%)</label>
+                        <label class="flex items-center gap-1 text-[11px] font-semibold text-slate-500 cursor-pointer">
+                            <input type="checkbox" id="pdfPpnAktif" checked onchange="onPpnToggle()" class="rounded border-slate-300"> Aktif
+                        </label>
+                    </div>
+                    <input type="number" min="0" value="11" id="pdfPpnPersen" oninput="recalcDokumenTotal()" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Jatuh Tempo</label>
+                <input type="date" id="pdfJatuhTempo" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500">
+            </div>
+
             <div class="mb-5">
                 <label class="block text-xs font-bold text-slate-500 mb-1">Catatan / Permintaan Khusus</label>
                 <textarea id="pdfCatatan" rows="2" placeholder="Contoh: warna tema biru, butuh halaman katalog produk, dsb." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500 resize-none"></textarea>
@@ -106,15 +137,19 @@
             <!-- RINGKASAN HARGA -->
             <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
                 <div class="flex items-center justify-between text-[13px] text-slate-600 mb-1.5">
-                    <span>Harga Paket</span>
-                    <span id="pdfSumPaket" class="font-semibold text-slate-700">Rp 0</span>
+                    <span>Subtotal</span>
+                    <span id="pdfSumSubtotal" class="font-semibold text-slate-700">Rp 0</span>
                 </div>
                 <div class="flex items-center justify-between text-[13px] text-slate-600 mb-1.5">
-                    <span>Total Fitur Opsional</span>
-                    <span id="pdfSumFitur" class="font-semibold text-slate-700">Rp 0</span>
+                    <span>Diskon</span>
+                    <span id="pdfSumDiskon" class="font-semibold text-slate-700">Rp 0</span>
+                </div>
+                <div class="flex items-center justify-between text-[13px] text-slate-600 mb-1.5">
+                    <span id="pdfSumPpnLabel">PPN 11%</span>
+                    <span id="pdfSumPpn" class="font-semibold text-slate-700">Rp 0</span>
                 </div>
                 <div class="flex items-center justify-between border-t border-slate-200 pt-2 mt-2">
-                    <span class="text-sm font-bold text-slate-700">Grand Total</span>
+                    <span class="text-sm font-bold text-slate-700">Total Tagihan</span>
                     <span id="pdfSumGrand" class="text-base font-extrabold text-primary">Rp 0</span>
                 </div>
                 <div id="pdfSumTagihanRow" class="flex items-center justify-between mt-2 hidden">

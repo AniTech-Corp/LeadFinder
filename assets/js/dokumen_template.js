@@ -3,20 +3,19 @@
  * ----------------------------------------------------------------------------
  * Template PDF Proposal & Invoice (client-side, jsPDF + AutoTable).
  *
- * PENTING:
- *   - Semua layout visual dokumen ADA DI FILE INI supaya mudah ditukar ketika
- *     template resmi dari tim Marketing & Sekretaris sudah turun.
- *   - TODO (PENDING APPROVAL): desain ini masih PLACEHOLDER. Ganti isi
- *     buildProposalPdf() / buildInvoicePdf() dengan template resmi setelah
- *     disetujui Ka Adnan & Pak Mecca. Struktur data `dokumen` yang dikirim
- *     dari backend (action=save_dokumen) tidak perlu diubah.
+ * Semua layout visual dokumen ADA DI FILE INI supaya mudah ditukar.
+ * Data `doc` berasal dari backend (action=save_dokumen) dan dilengkapi di
+ * app.js (items, subtotal, diskon, ppn, total, jatuh_tempo, no_seri).
+ *
+ * Ini fase FRONTEND: perhitungan pajak/diskon & nomor seri dilakukan di klien.
  * ==========================================================================*/
 
 const DOKUMEN_PERUSAHAAN = {
-    nama: 'ANITECH DIGITAL',
-    tagline: 'IT Solution & Digital Agency',
-    alamat: 'Jl. Teknologi Raya No. 99, Jakarta',
-    kontak: 'Email: hello@anitech.id | WA: 0812-3456-7890',
+    nama: 'AniTech',
+    nama_upper: 'ANITECH',
+    alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
+    kontak: '08132151962',
+    logo: 'assets/logo/Logo AniTech Transparan.webp',
     bank: [
         { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
         { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
@@ -30,223 +29,296 @@ function dokumenFormatRupiah(n) {
 
 function dokumenFormatTanggal(str) {
     try {
-        const d = new Date((str || '').replace(' ', 'T'));
-        if (isNaN(d.getTime())) return str;
+        const d = new Date(String(str || '').replace(' ', 'T'));
+        if (isNaN(d.getTime())) return str || '-';
         return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-    } catch (e) { return str; }
+    } catch (e) { return str || '-'; }
 }
 
-function dokumenHeader(doc, pdf, title) {
-    const P = DOKUMEN_PERUSAHAAN;
-    const pageW = pdf.internal.pageSize.getWidth();
-
-    // Nama perusahaan & info
-    pdf.setFontSize(20);
-    pdf.setTextColor(P.warna.r, P.warna.g, P.warna.b);
-    pdf.setFont(undefined, 'bold');
-    pdf.text(P.nama, 40, 46);
-
-    pdf.setFontSize(9);
-    pdf.setFont(undefined, 'normal');
-    pdf.setTextColor(100, 116, 139);
-    pdf.text(P.tagline, 40, 60);
-    pdf.text(P.alamat, 40, 72);
-    pdf.text(P.kontak, 40, 84);
-
-    // Judul dokumen (kanan)
-    pdf.setFontSize(20);
-    pdf.setFont(undefined, 'bold');
-    pdf.setTextColor(15, 23, 42);
-    pdf.text(title.toUpperCase(), pageW - 40, 46, { align: 'right' });
-
-    pdf.setFontSize(9);
-    pdf.setFont(undefined, 'normal');
-    pdf.setTextColor(51, 65, 85);
-    pdf.text('# ' + doc.no_dokumen, pageW - 40, 60, { align: 'right' });
-    pdf.text('Tanggal: ' + dokumenFormatTanggal(doc.tanggal), pageW - 40, 72, { align: 'right' });
-
-    // Garis pemisah
-    pdf.setDrawColor(P.warna.r, P.warna.g, P.warna.b);
-    pdf.setLineWidth(1.5);
-    pdf.line(40, 96, pageW - 40, 96);
+function dokumenLabelStatus(s) {
+    const map = { 'Belum Bayar': 'Belum Dibayar', 'DP': 'DP', 'Lunas': 'Lunas' };
+    return map[s] || s;
 }
 
-function dokumenKlienBox(doc, pdf, startY) {
-    const klien = doc.klien || {};
-    const pageW = pdf.internal.pageSize.getWidth();
-    const rightX = pageW / 2 + 10;
-
-    pdf.setFontSize(10);
-    pdf.setFont(undefined, 'bold');
-    pdf.setTextColor(15, 23, 42);
-    pdf.text('KEPADA:', 40, startY);
-    pdf.text('INFORMASI DOKUMEN:', rightX, startY);
-
-    pdf.setFontSize(9);
-    pdf.setFont(undefined, 'normal');
-    pdf.setTextColor(51, 65, 85);
-
-    let y = startY + 14;
-    pdf.text(klien.nama || '-', 40, y); y += 12;
-    pdf.text(pdf.splitTextToSize(klien.alamat || '-', pageW / 2 - 60), 40, y); 
-    y += 12 * Math.max(1, pdf.splitTextToSize(klien.alamat || '-', pageW / 2 - 60).length);
-    pdf.text('Telp/WA: ' + (klien.telepon || '-'), 40, y);
-    pdf.text('PIC: Bpk/Ibu Pimpinan', 40, y + 12);
-
-    let ry = startY + 14;
-    pdf.text('Jenis Dokumen: ' + doc.jenis, rightX, ry); ry += 12;
-    pdf.text('Status: ' + doc.status_bayar, rightX, ry); ry += 12;
-    pdf.text('Estimasi Pengerjaan: ' + ((doc.paket && doc.paket.estimasi_hari) || '-') + ' Hari Kerja', rightX, ry);
-
-    return Math.max(y + 24, ry + 24);
-}
-
-function dokumenItemTable(doc, pdf, startY) {
-    const P = DOKUMEN_PERUSAHAAN;
-    const body = [];
-
-    // Baris paket utama
-    body.push([
-        { content: doc.paket.nama + (doc.paket.deskripsi ? '\n' + doc.paket.deskripsi : ''), styles: { fontStyle: 'bold' } },
-        { content: dokumenFormatRupiah(doc.paket.harga), styles: { halign: 'right' } }
-    ]);
-
-    // Baris fitur opsional
-    (doc.fitur || []).forEach(f => {
-        body.push([
-            '- ' + f.nama,
-            { content: dokumenFormatRupiah(f.harga), styles: { halign: 'right' } }
-        ]);
+// --- Logo loader: WEBP -> canvas -> PNG dataURL (agar kompatibel dgn jsPDF) ---
+let _dokumenLogoCache = null;
+function dokumenLoadLogo() {
+    return new Promise(resolve => {
+        if (_dokumenLogoCache !== null) return resolve(_dokumenLogoCache || null);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                _dokumenLogoCache = { dataUrl: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight };
+            } catch (e) {
+                _dokumenLogoCache = false;
+            }
+            resolve(_dokumenLogoCache || null);
+        };
+        img.onerror = () => { _dokumenLogoCache = false; resolve(null); };
+        img.src = encodeURI(DOKUMEN_PERUSAHAAN.logo);
     });
-
-    // Subtotal fitur (kalau ada)
-    if ((doc.fitur || []).length > 0) {
-        body.push([
-            { content: 'Subtotal Fitur Opsional', styles: { textColor: [100, 116, 139] } },
-            { content: dokumenFormatRupiah(doc.subtotal_fitur), styles: { halign: 'right', textColor: [100, 116, 139] } }
-        ]);
-    }
-
-    // Grand total
-    body.push([
-        { content: 'GRAND TOTAL', styles: { fontStyle: 'bold' } },
-        { content: dokumenFormatRupiah(doc.grand_total), styles: { halign: 'right', fontStyle: 'bold', textColor: [P.warna.r, P.warna.g, P.warna.b] } }
-    ]);
-
-    // Tagihan aktif (invoice)
-    if (doc.jenis === 'Invoice') {
-        const label = doc.termin === 'dp' ? 'TAGIHAN AKTIF (DP 50%)' : 'TAGIHAN AKTIF (LUNAS)';
-        body.push([
-            { content: label, styles: { fontStyle: 'bold', textColor: [22, 163, 74] } },
-            { content: dokumenFormatRupiah(doc.total_tagihan), styles: { halign: 'right', fontStyle: 'bold', textColor: [22, 163, 74] } }
-        ]);
-    }
-
-    pdf.autoTable({
-        startY: startY,
-        head: [['Deskripsi Layanan & Paket', 'Harga']],
-        body: body,
-        styles: { fontSize: 9, cellPadding: 6, valign: 'middle' },
-        headStyles: { fillColor: [248, 250, 252], textColor: [51, 65, 85], fontStyle: 'bold' },
-        columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 120 } },
-        margin: { left: 40, right: 40 }
-    });
-
-    return pdf.lastAutoTable.finalY + 20;
-}
-
-function dokumenFooter(doc, pdf, startY) {
-    const P = DOKUMEN_PERUSAHAAN;
-    const pageW = pdf.internal.pageSize.getWidth();
-
-    if (doc.jenis === 'Invoice') {
-        pdf.setFontSize(9);
-        pdf.setTextColor(22, 101, 52);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('INSTRUKSI PEMBAYARAN:', 40, startY);
-        pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(51, 65, 85);
-        let y = startY + 14;
-        pdf.text('Silakan lakukan transfer ke rekening berikut:', 40, y); y += 12;
-        P.bank.forEach(b => {
-            pdf.text(`Bank ${b.bank}: ${b.no} a.n ${b.atas}`, 40, y); y += 12;
-        });
-        pdf.setTextColor(100, 116, 139);
-        pdf.text('Harap cantumkan nomor invoice ' + doc.no_dokumen + ' pada berita transfer.', 40, y + 4);
-        startY = y + 24;
-    } else {
-        pdf.setFontSize(9);
-        pdf.setTextColor(30, 64, 175);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('KETERANGAN PROPOSAL:', 40, startY);
-        pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(51, 65, 85);
-        const ket = 'Harga yang tercantum berlaku selama 14 hari sejak tanggal proposal ini diterbitkan. Jika Anda setuju, silakan hubungi tim sales kami untuk proses administrasi selanjutnya.';
-        pdf.text(pdf.splitTextToSize(ket, pageW - 80), 40, startY + 14);
-        startY += 14 + (pdf.splitTextToSize(ket, pageW - 80).length * 12) + 10;
-    }
-
-    // Catatan klien
-    if (doc.catatan) {
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(15, 23, 42);
-        pdf.text('Catatan / Permintaan Khusus:', 40, startY);
-        pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(51, 65, 85);
-        const lines = pdf.splitTextToSize(doc.catatan, pageW - 80);
-        pdf.text(lines, 40, startY + 14);
-        startY += 14 + lines.length * 12 + 10;
-    }
-
-    // Tanda tangan
-    const sigX = pageW - 200;
-    pdf.setTextColor(51, 65, 85);
-    pdf.setFontSize(9);
-    pdf.text('Hormat Kami,', sigX, startY);
-    pdf.setDrawColor(15, 23, 42);
-    pdf.line(sigX, startY + 60, sigX + 140, startY + 60);
-    pdf.setFont(undefined, 'bold');
-    pdf.text(P.nama, sigX, startY + 72);
-    pdf.setFont(undefined, 'normal');
-    pdf.setTextColor(100, 116, 139);
-    pdf.text('Direktur Utama', sigX, startY + 84);
-
-    // Footer halaman
-    const pageH = pdf.internal.pageSize.getHeight();
-    pdf.setFontSize(8);
-    pdf.setTextColor(148, 163, 184);
-    pdf.text('Dokumen ini digenerate secara otomatis oleh sistem Lead Finder Anitech.',
-        pageW / 2, pageH - 30, { align: 'center' });
-    pdf.text('\u00A9 ' + new Date().getFullYear() + ' ' + P.nama + '. All rights reserved.',
-        pageW / 2, pageH - 20, { align: 'center' });
-}
-
-function dokumenBuild(doc, title) {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    pdf.setFont('helvetica', 'normal');
-
-    dokumenHeader(doc, pdf, title);
-    const yKlien = dokumenKlienBox(doc, pdf, 120);
-    const yTable = dokumenItemTable(doc, pdf, yKlien);
-    dokumenFooter(doc, pdf, yTable);
-
-    return pdf;
 }
 
 function dokumenFilename(doc) {
     const nama = (doc.klien && doc.klien.nama ? doc.klien.nama : 'klien').replace(/[^a-zA-Z0-9]+/g, '_');
-    return `${doc.jenis}_${nama}_${doc.no_dokumen}.pdf`;
+    const no = (doc.no_seri || doc.no_dokumen || '').replace(/[^a-zA-Z0-9]+/g, '_');
+    return `${doc.jenis}_${nama}_${no}.pdf`;
 }
 
-// TODO (PENDING APPROVAL): ganti layout dengan template resmi Marketing & Sekretaris.
+// --- Renderer utama (dipakai Proposal & Invoice) ---
+async function dokumenRender(doc, kind) {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const P = DOKUMEN_PERUSAHAAN;
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const M = 40;
+    const isInvoice = kind === 'invoice';
+    const logo = await dokumenLoadLogo();
+
+    // ================= HEADER =================
+    // Kiri: nama + alamat + kontak
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(18);
+    pdf.setTextColor(17, 24, 39);
+    pdf.text(P.nama, M, 60);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(71, 85, 105);
+    const addrLines = pdf.splitTextToSize(P.alamat, 260);
+    pdf.text(addrLines, M, 76);
+    let leftBottom = 76 + addrLines.length * 11;
+    pdf.text('Telp: ' + P.kontak, M, leftBottom + 2);
+    leftBottom += 2;
+
+    // Kanan: logo + "ANITECH" + nomor seri
+    let rightBottom = 46;
+    if (logo) {
+        const lw = 120;
+        const lh = lw * (logo.h / logo.w);
+        pdf.addImage(logo.dataUrl, 'PNG', pageW - M - lw, 40, lw, lh);
+        rightBottom = 40 + lh + 10;
+    }
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(13);
+    pdf.setTextColor(17, 24, 39);
+    pdf.text(P.nama_upper, pageW - M, rightBottom + 6, { align: 'right' });
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text('No. ' + (doc.no_seri || doc.no_dokumen || '-'), pageW - M, rightBottom + 19, { align: 'right' });
+    rightBottom += 19;
+
+    let y = Math.max(leftBottom, rightBottom) + 18;
+    pdf.setDrawColor(P.warna.r, P.warna.g, P.warna.b);
+    pdf.setLineWidth(1.2);
+    pdf.line(M, y, pageW - M, y);
+    y += 22;
+
+    // ================= 3 KOLOM META =================
+    const metaH = 42;
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(M, y, pageW - 2 * M, metaH, 'F');
+    const colW = (pageW - 2 * M) / 3;
+    const metaCols = isInvoice
+        ? [
+            { label: 'TANGGAL TERBIT', value: dokumenFormatTanggal(doc.tanggal_terbit || doc.tanggal) },
+            { label: 'JATUH TEMPO', value: doc.jatuh_tempo ? dokumenFormatTanggal(doc.jatuh_tempo) : '-' },
+            { label: 'STATUS', value: dokumenLabelStatus(doc.status_bayar) }
+        ]
+        : [
+            { label: 'TANGGAL TERBIT', value: dokumenFormatTanggal(doc.tanggal_terbit || doc.tanggal) },
+            { label: 'BERLAKU HINGGA', value: doc.jatuh_tempo ? dokumenFormatTanggal(doc.jatuh_tempo) : '-' },
+            { label: 'STATUS', value: dokumenLabelStatus(doc.status_bayar) }
+        ];
+    metaCols.forEach((c, i) => {
+        const x = M + 16 + i * colW;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(c.label, x, y + 15);
+        pdf.setFontSize(10.5);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(String(c.value), x, y + 31);
+    });
+    y += metaH + 20;
+
+    // ================= PENERIMA (kotak abu-abu) =================
+    const klien = doc.klien || {};
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    const namaLines = pdf.splitTextToSize(klien.nama || '-', pageW - 2 * M - 32);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    const klienAddrLines = pdf.splitTextToSize(klien.alamat || '-', pageW - 2 * M - 32);
+    const boxH = 22 + namaLines.length * 14 + klienAddrLines.length * 12 + 16;
+
+    pdf.setFillColor(241, 245, 249);
+    pdf.rect(M, y, pageW - 2 * M, boxH, 'F');
+    let by = y + 16;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(isInvoice ? 'DITAGIHKAN KEPADA' : 'KEPADA', M + 16, by);
+    by += 16;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(namaLines, M + 16, by);
+    by += namaLines.length * 14;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text(klienAddrLines, M + 16, by);
+    by += klienAddrLines.length * 12;
+    if (klien.telepon) {
+        pdf.text('Telp/WA: ' + klien.telepon, M + 16, by);
+    }
+    y += boxH + 22;
+
+    // ================= TABEL RINCIAN 5 KOLOM =================
+    const body = (doc.items || []).map(it => ([
+        it.deskripsi,
+        String(it.qty != null ? it.qty : 1),
+        it.satuan || 'Paket',
+        { content: dokumenFormatRupiah(it.harga_satuan), styles: { halign: 'right' } },
+        { content: dokumenFormatRupiah(it.total), styles: { halign: 'right' } }
+    ]));
+
+    pdf.autoTable({
+        startY: y,
+        head: [['Deskripsi', 'Qty', 'Satuan', 'Harga Satuan', 'Total']],
+        body: body,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 6, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.5 },
+        headStyles: { fillColor: [P.warna.r, P.warna.g, P.warna.b], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+            0: { cellWidth: 'auto' },
+            1: { cellWidth: 40, halign: 'center' },
+            2: { cellWidth: 70, halign: 'center' },
+            3: { cellWidth: 100, halign: 'right' },
+            4: { cellWidth: 100, halign: 'right' }
+        },
+        margin: { left: M, right: M }
+    });
+    y = pdf.lastAutoTable.finalY + 20;
+
+    // ================= RINGKASAN NOMINAL =================
+    const boxX = pageW - M - 230;
+    const rowGap = 18;
+    const sumRows = [
+        ['SUBTOTAL', dokumenFormatRupiah(doc.subtotal)],
+        ['DISKON', doc.diskon ? ('- ' + dokumenFormatRupiah(doc.diskon)) : dokumenFormatRupiah(0)],
+        ['PPN ' + (doc.ppn_persen || 0) + '%', dokumenFormatRupiah(doc.ppn_nominal)]
+    ];
+    let sy = y;
+    sumRows.forEach(r => {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9.5);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text(r[0], boxX, sy);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(r[1], pageW - M, sy, { align: 'right' });
+        sy += rowGap;
+    });
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.8);
+    pdf.line(boxX, sy - 7, pageW - M, sy - 7);
+    sy += 8;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text('TOTAL TAGIHAN', boxX, sy + 4);
+    pdf.setTextColor(P.warna.r, P.warna.g, P.warna.b);
+    pdf.text(dokumenFormatRupiah(doc.grand_total), pageW - M, sy + 4, { align: 'right' });
+    sy += 22;
+
+    // Catatan termin DP
+    if (isInvoice && doc.termin === 'dp') {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9);
+        pdf.setTextColor(22, 163, 74);
+        pdf.text('Termin DP 50% \u2192 Tagihan saat ini: ' + dokumenFormatRupiah(doc.total_tagihan), boxX, sy + 4);
+        sy += 18;
+    }
+    y = sy + 16;
+
+    // ================= FOOTER =================
+    if (y > pageH - 240) { pdf.addPage(); y = 60; }
+
+    if (isInvoice) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9);
+        pdf.setTextColor(22, 101, 52);
+        pdf.text('INSTRUKSI PEMBAYARAN', M, y);
+        y += 14;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(71, 85, 105);
+        pdf.text('Silakan transfer ke rekening berikut:', M, y);
+        y += 13;
+        P.bank.forEach(b => { pdf.text(`Bank ${b.bank}: ${b.no} a.n ${b.atas}`, M, y); y += 12; });
+        pdf.setTextColor(100, 116, 139);
+        pdf.text('Cantumkan No. ' + (doc.no_seri || doc.no_dokumen) + ' pada berita transfer.', M, y + 2);
+        y += 22;
+    } else {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9);
+        pdf.setTextColor(30, 64, 175);
+        pdf.text('KETERANGAN PROPOSAL', M, y);
+        y += 14;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(71, 85, 105);
+        const ket = 'Harga yang tercantum berlaku selama 14 hari sejak tanggal terbit. Jika setuju, silakan hubungi tim kami untuk proses administrasi selanjutnya.';
+        const ketLines = pdf.splitTextToSize(ket, pageW - 2 * M);
+        pdf.text(ketLines, M, y);
+        y += ketLines.length * 12 + 10;
+    }
+
+    if (doc.catatan) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(15, 23, 42);
+        pdf.text('Catatan:', M, y);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(71, 85, 105);
+        const cl = pdf.splitTextToSize(doc.catatan, pageW - 2 * M);
+        pdf.text(cl, M, y + 13);
+        y += 13 + cl.length * 12 + 8;
+    }
+
+    // Tanda tangan
+    const sigX = pageW - M - 160;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text('Hormat Kami,', sigX, y + 6);
+    pdf.setDrawColor(15, 23, 42);
+    pdf.line(sigX, y + 56, sigX + 140, y + 56);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(P.nama, sigX, y + 68);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('Direktur', sigX, y + 80);
+
+    // Footer halaman
+    pdf.setFontSize(8);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text('Dokumen ini digenerate otomatis oleh sistem Lead Finder Anitech.', pageW / 2, pageH - 30, { align: 'center' });
+    pdf.text('\u00A9 ' + new Date().getFullYear() + ' ' + P.nama + '. All rights reserved.', pageW / 2, pageH - 20, { align: 'center' });
+
+    pdf.save(dokumenFilename(doc));
+}
+
 function buildProposalPdf(doc) {
-    const pdf = dokumenBuild(doc, 'Proposal');
-    pdf.save(dokumenFilename(doc));
+    return dokumenRender(doc, 'proposal');
 }
 
-// TODO (PENDING APPROVAL): ganti layout dengan template resmi Marketing & Sekretaris.
 function buildInvoicePdf(doc) {
-    const pdf = dokumenBuild(doc, 'Invoice');
-    pdf.save(dokumenFilename(doc));
+    return dokumenRender(doc, 'invoice');
 }
