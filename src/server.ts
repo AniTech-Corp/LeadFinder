@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.routes.js';
 import leadsRoutes from './routes/leads.routes.js';
 import crmRoutes from './routes/crm.routes.js';
 import docsRoutes from './routes/docs.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/docs', docsRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // --- BACKWARD COMPATIBILITY ENDPOINTS (Agar view & script lama tetap bekerja 100%) ---
 // 1. backend/api.php
@@ -87,6 +89,18 @@ app.all('/backend/crm_api.php', (req: Request, res: Response, next) => {
     // Simpan Proposal/Invoice (harga dihitung ulang di server)
     req.url = '/dokumen';
     crmRoutes(req, res, next);
+  } else if (action === 'settings') {
+    // Konten dinamis (company, brands, dokumen_defaults, branding, lokasi, kategori)
+    req.url = '/';
+    settingsRoutes(req, res, next);
+  } else if (action === 'config_status') {
+    // Status integrasi (Apify/AI/DB) tanpa membocorkan token
+    req.url = '/status';
+    settingsRoutes(req, res, next);
+  } else if (action === 'kategori') {
+    // Master kategori industri
+    req.url = '/kategori';
+    settingsRoutes(req, res, next);
   } else {
     res.status(400).json({ error: 'Invalid action' });
   }
