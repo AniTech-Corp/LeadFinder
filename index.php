@@ -39,8 +39,15 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
         }
     </script>
     
-    <!-- SheetJS for Export -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js" async></script>
+    <!-- SheetJS with Styling Support -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    
+    <!-- jsPDF & AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { background-color: #f4f7fb; color: #334155; }
@@ -104,9 +111,9 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
                         <div class="flex items-center gap-3"><i class="ri-fire-line text-lg text-slate-400"></i> Prioritas</div>
                         <span id="badge_prioritas" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
-                    <a href="#" data-view="cockpit_antrian" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 text-blue-600 font-medium transition-colors text-[13px] border-l-[3px] border-blue-600">
-                        <div class="flex items-center gap-3 -ml-[3px]"><i class="ri-grid-fill text-lg"></i> Antrian</div>
-                        <span id="badge_antrian" class="text-[10px] font-bold bg-blue-100/80 text-blue-600 px-2 py-0.5 rounded-full">0</span>
+                    <a href="#" data-view="cockpit_baru" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 text-blue-600 font-medium transition-colors text-[13px] border-l-[3px] border-blue-600">
+                        <div class="flex items-center gap-3 -ml-[3px]"><i class="ri-user-add-line text-lg"></i> Prospek Baru</div>
+                        <span id="badge_baru" class="text-[10px] font-bold bg-blue-100/80 text-blue-600 px-2 py-0.5 rounded-full">0</span>
                     </a>
                     <a href="#" data-view="cockpit_telepon" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
                         <div class="flex items-center gap-3"><i class="ri-phone-line text-lg text-slate-400"></i> Telepon lagi</div>
@@ -124,10 +131,36 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
                         <div class="flex items-center gap-3"><i class="ri-delete-bin-line text-lg text-slate-400"></i> Cut</div>
                         <span id="badge_cut" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
+                    <!-- BATAS PRODUKSI -->
+                    <div class="my-1 border-t border-slate-200"></div>
+                    <a href="#" data-view="cockpit_antrian" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-stack-fill text-lg text-slate-400"></i> Antrian Project</div>
+                        <span id="badge_antrian" class="text-xs font-semibold text-slate-500">0</span>
+                    </a>
+                    <a href="#" data-view="cockpit_selesai" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-checkbox-circle-fill text-lg text-slate-400"></i> Project Selesai</div>
+                        <span id="badge_selesai" class="text-xs font-semibold text-slate-500">0</span>
+                    </a>
                 </div>
             </div>
             
-            <nav class="px-4 py-2 flex flex-col mt-2">
+            <!-- Section: Administrasi -->
+            <div class="px-6 mb-2">
+                <button type="button" id="adminToggle" class="w-full flex items-center justify-between text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest mb-2 px-2 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none">
+                    <span>Administrasi</span>
+                    <i id="adminCaret" class="ri-arrow-down-s-line text-sm transition-transform duration-200"></i>
+                </button>
+                <div id="adminDropdown" class="flex flex-col gap-0.5">
+                    <a href="#" data-view="administrasi_proposal" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-file-text-line text-lg text-slate-400"></i> Proposal Penawaran</div>
+                    </a>
+                    <a href="#" data-view="administrasi_invoice" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-bank-card-line text-lg text-slate-400"></i> Invoice & Tagihan</div>
+                    </a>
+                </div>
+            </div>
+            
+            <nav class="px-4 py-2 flex flex-col border-t border-slate-200 mt-2 pt-4">
                 <a href="#" data-view="pengaturan" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
                     <i class="ri-settings-4-line text-lg"></i>
                     <span>Pengaturan</span>
@@ -230,6 +263,29 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
                         label.classList.remove('active');
                     }
                 }
+            }
+        });
+
+        // Sidebar Toggles
+        document.getElementById('cockpitToggle')?.addEventListener('click', () => {
+            const dropdown = document.getElementById('cockpitDropdown');
+            const caret = document.getElementById('cockpitCaret');
+            dropdown.classList.toggle('hidden');
+            if(dropdown.classList.contains('hidden')) {
+                caret.classList.remove('rotate-180');
+            } else {
+                caret.classList.add('rotate-180');
+            }
+        });
+
+        document.getElementById('adminToggle')?.addEventListener('click', () => {
+            const dropdown = document.getElementById('adminDropdown');
+            const caret = document.getElementById('adminCaret');
+            dropdown.classList.toggle('hidden');
+            if(dropdown.classList.contains('hidden')) {
+                caret.classList.remove('rotate-180');
+            } else {
+                caret.classList.add('rotate-180');
             }
         });
     </script>

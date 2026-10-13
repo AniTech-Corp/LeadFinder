@@ -14,6 +14,9 @@ $result = [
     'hasWa' => false,
     'hasIg' => false,
     'hasFb' => false,
+    'hasTiktok' => false,
+    'hasX' => false,
+    'scale' => 'Kecil',
     'error' => null
 ];
 
@@ -56,6 +59,24 @@ if (!empty($website)) {
         // Search for FB links
         if (stripos($html, 'facebook.com') !== false) {
             $result['hasFb'] = true;
+        }
+        // Search for TikTok links
+        if (stripos($html, 'tiktok.com') !== false) {
+            $result['hasTiktok'] = true;
+        }
+        // Search for X / Twitter links
+        if (stripos($html, 'twitter.com') !== false || stripos($html, 'x.com') !== false) {
+            $result['hasX'] = true;
+        }
+
+        // Business Scale Detection (Regex)
+        $cleanText = strip_tags($html);
+        if (preg_match('/\b(PT\.?|Tbk\.?|nasional|karir|investor|banyak cabang)\b/i', $cleanText)) {
+            $result['scale'] = 'Besar';
+        } elseif (preg_match('/\b(CV\.?|PT skala kecil|cabang)\b/i', $cleanText)) {
+            $result['scale'] = 'Menengah';
+        } else {
+            $result['scale'] = 'Kecil';
         }
     } else {
         $result['error'] = 'Failed to crawl website: ' . $error;

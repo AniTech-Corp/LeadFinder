@@ -1,0 +1,17 @@
+# Composer Dependencies
+/vendor/
+composer.phar
+
+# Generated Documents
+/downloads/*
+!/downloads/.gitkeep
+
+# Environment & Secrets
+.env
+backend/.env
+
+# OS / Editor Files
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
