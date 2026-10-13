@@ -203,47 +203,40 @@ async function dokumenRender(doc, kind) {
         },
         margin: { left: M, right: M }
     });
-    y = pdf.lastAutoTable.finalY + 20;
+    y = pdf.lastAutoTable.finalY + 40;
 
     // ================= RINGKASAN NOMINAL =================
     const boxX = pageW - M - 230;
-    const rowGap = 18;
-    const sumRows = [
-        ['SUBTOTAL', dokumenFormatRupiah(doc.subtotal)],
-        ['DISKON', doc.diskon ? ('- ' + dokumenFormatRupiah(doc.diskon)) : dokumenFormatRupiah(0)],
-        ['PPN ' + (doc.ppn_persen || 0) + '%', dokumenFormatRupiah(doc.ppn_nominal)]
-    ];
+    const ruleY = (yy) => {
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.6);
+        pdf.line(boxX, yy, pageW - M, yy);
+    };
     let sy = y;
-    sumRows.forEach(r => {
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9.5);
-        pdf.setTextColor(71, 85, 105);
-        pdf.text(r[0], boxX, sy);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(r[1], pageW - M, sy, { align: 'right' });
-        sy += rowGap;
-    });
-    pdf.setDrawColor(226, 232, 240);
-    pdf.setLineWidth(0.8);
-    pdf.line(boxX, sy - 7, pageW - M, sy - 7);
-    sy += 8;
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.setTextColor(15, 23, 42);
-    pdf.text('TOTAL TAGIHAN', boxX, sy + 4);
-    pdf.setTextColor(P.warna.r, P.warna.g, P.warna.b);
-    pdf.text(dokumenFormatRupiah(doc.grand_total), pageW - M, sy + 4, { align: 'right' });
-    sy += 22;
-
-    // Catatan termin DP
-    if (isInvoice && doc.termin === 'dp') {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
-        pdf.setTextColor(22, 163, 74);
-        pdf.text('Termin DP 50% \u2192 Tagihan saat ini: ' + dokumenFormatRupiah(doc.total_tagihan), boxX, sy + 4);
-        sy += 18;
+    ruleY(sy);                    // garis atas blok
+    const baris = (label, nilai, opts = {}) => {
+        const cLabel = opts.warna || [71, 85, 105];
+        const cNilai = opts.warnaNilai || [15, 23, 42];
+        sy += opts.bold ? 16 : 15;
+        pdf.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+        pdf.setFontSize(opts.bold ? 11 : 9.5);
+        pdf.setTextColor(cLabel[0], cLabel[1], cLabel[2]);
+        pdf.text(label, boxX, sy);
+        pdf.setTextColor(cNilai[0], cNilai[1], cNilai[2]);
+        pdf.text(nilai, pageW - M, sy, { align: 'right' });
+        sy += 6;
+        ruleY(sy);                // garis bawah tiap baris
+    };
+    baris('SUBTOTAL', dokumenFormatRupiah(doc.subtotal));
+    baris('DISKON', doc.diskon ? ('- ' + dokumenFormatRupiah(doc.diskon)) : dokumenFormatRupiah(0));
+    baris('PPN ' + (doc.ppn_persen || 0) + '%', dokumenFormatRupiah(doc.ppn_nominal));
+    baris('TOTAL TAGIHAN', dokumenFormatRupiah(doc.grand_total), { bold: true, warnaNilai: [P.warna.r, P.warna.g, P.warna.b] });
+    if (isInvoice) {
+        // Baris termin (label pendek + nilai rata kanan) supaya tidak terpotong
+        baris('TERMIN', doc.termin === 'dp' ? 'DP 50%' : 'LUNAS', { warna: [22, 163, 74], warnaNilai: [22, 163, 74] });
+        baris('TAGIHAN SAAT INI', dokumenFormatRupiah(doc.total_tagihan), { warna: [22, 163, 74], warnaNilai: [22, 163, 74] });
     }
-    y = sy + 16;
+    y = sy + 20;
 
     // ================= FOOTER =================
     if (y > pageH - 240) { pdf.addPage(); y = 60; }
