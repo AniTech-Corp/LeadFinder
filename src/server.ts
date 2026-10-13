@@ -75,6 +75,18 @@ app.all('/backend/crm_api.php', (req: Request, res: Response, next) => {
   } else if (action === 'dashboard_stats') {
     req.url = `/dashboard-stats?period=${req.query.period || 'all'}`;
     crmRoutes(req, res, next);
+  } else if (action === 'catalog') {
+    // Katalog paket layanan + master fitur opsional
+    req.url = '/catalog';
+    crmRoutes(req, res, next);
+  } else if (action === 'dokumen_list') {
+    // Daftar dokumen Proposal/Invoice untuk tabel administrasi
+    req.url = '/dokumen';
+    crmRoutes(req, res, next);
+  } else if (action === 'save_dokumen') {
+    // Simpan Proposal/Invoice (harga dihitung ulang di server)
+    req.url = '/dokumen';
+    crmRoutes(req, res, next);
   } else {
     res.status(400).json({ error: 'Invalid action' });
   }

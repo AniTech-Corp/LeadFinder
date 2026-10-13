@@ -210,4 +210,165 @@ router.get('/dashboard-stats', async (req: Request, res: Response): Promise<void
   }
 });
 
+// GET /api/crm/catalog - Katalog paket layanan + master fitur opsional
+router.get('/catalog', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    if (!pool) {
+      res.json({ status: 'success', katalog: [], fitur_opsional: [] });
+      return;
+    }
+    const [katalog]: [any[], any] = await pool.query(
+      'SELECT id_layanan, nama_paket, deskripsi_fitur, estimasi_hari, harga FROM tbl_katalog_layanan ORDER BY id_layanan ASC'
+    );
+    const [fitur]: [any[], any] = await pool.query(
+      'SELECT id_fitur, nama_fitur, harga, kategori FROM tbl_fitur_opsional WHERE is_aktif = 1 ORDER BY kategori ASC, id_fitur ASC'
+    );
+    res.json({ status: 'success', katalog, fitur_opsional: fitur });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// GET /api/crm/dokumen - Daftar dokumen Proposal/Invoice untuk tabel administrasi
+router.get('/dokumen', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    if (!pool) {
+      res.json({ status: 'success', data: [] });
+      return;
+    }
+    const [rows]: [any[], any] = await pool.query(
+      `SELECT d.no_dokumen, d.cid, d.jenis, d.id_layanan, d.rincian_fitur, d.catatan,
+              d.total_tagihan, d.status_bayar, d.tanggal_cetak, l.title, l.industry
+       FROM tbl_dokumen d
+       LEFT JOIN leads l ON l.cid = d.cid
+       ORDER BY d.tanggal_cetak DESC`
+    );
+    res.json({ status: 'success', data: rows });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// POST /api/crm/dokumen - Simpan Proposal/Invoice (harga dihitung ulang di server)
+router.post('/dokumen', async (req: Request, res: Response): Promise<void> => {
+  const input = req.body || {};
+  const cid = input.cid || '';
+  const jenis = String(input.jenis || '').toLowerCase();
+  const idLayanan = input.id_layanan ?? '';
+  const termin = input.termin || 'full';
+  const catatan = String(input.catatan || '').trim();
+  const fiturInput: any[] = Array.isArray(input.fitur) ? input.fitur : [];
+
+  if (!cid || !['proposal', 'invoice'].includes(jenis) || !idLayanan) {
+    res.status(400).json({ status: 'error', message: 'Parameter tidak lengkap' });
+    return;
+  }
+
+  try {
+    if (!pool) {
+      res.status(500).json({ status: 'error', message: 'Database belum terhubung.' });
+      return;
+    }
+
+    // 1. Ambil data klien
+    const [leadRows]: [any[], any] = await pool.query('SELECT * FROM leads WHERE cid = ?', [cid]);
+    const lead = leadRows[0];
+    if (!lead) {
+      res.status(404).json({ status: 'error', message: 'Klien tidak ditemukan' });
+      return;
+    }
+
+    // 2. Ambil data paket
+    const [layananRows]: [any[], any] = await pool.query(
+      'SELECT * FROM tbl_katalog_layanan WHERE id_layanan = ?',
+      [idLayanan]
+    );
+    const layanan = layananRows[0];
+    if (!layanan) {
+      res.status(404).json({ status: 'error', message: 'Paket layanan tidak ditemukan' });
+      return;
+    }
+
+    // 3. Resolve fitur opsional: master diambil harganya dari DB, manual dari input
+    const rincianFitur: any[] = [];
+    let subtotalFitur = 0;
+    for (const f of fiturInput) {
+      if (f && f.id_fitur) {
+        const [fr]: [any[], any] = await pool.query(
+          'SELECT id_fitur, nama_fitur, harga FROM tbl_fitur_opsional WHERE id_fitur = ?',
+          [f.id_fitur]
+        );
+        const row = fr[0];
+        if (row) {
+          const hargaF = parseFloat(row.harga) || 0;
+          rincianFitur.push({ id_fitur: parseInt(row.id_fitur, 10), nama: row.nama_fitur, harga: hargaF, manual: false });
+          subtotalFitur += hargaF;
+        }
+      } else if (f && f.nama) {
+        const hargaF = parseFloat(f.harga) || 0;
+        rincianFitur.push({ id_fitur: null, nama: String(f.nama).trim(), harga: hargaF, manual: true });
+        subtotalFitur += hargaF;
+      }
+    }
+
+    const hargaPaket = parseFloat(layanan.harga) || 0;
+    const grandTotal = hargaPaket + subtotalFitur;
+
+    const jenisLabel = jenis === 'invoice' ? 'Invoice' : 'Proposal';
+    let statusBayar = 'Belum Bayar';
+    let tagihan = grandTotal;
+    if (jenis === 'invoice' && termin === 'dp') {
+      tagihan = grandTotal * 0.5;
+      statusBayar = 'DP';
+    }
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const ym = `${now.getFullYear()}${pad(now.getMonth() + 1)}`;
+    const noDokumen = `${jenis.toUpperCase().slice(0, 3)}-${ym}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const tanggal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const rincianJson = JSON.stringify({
+      paket: { id_layanan: parseInt(String(idLayanan), 10), nama: layanan.nama_paket, harga: hargaPaket },
+      fitur: rincianFitur,
+      termin,
+      subtotal_fitur: subtotalFitur,
+      grand_total: grandTotal,
+    });
+
+    // 4. Simpan record dokumen ke tbl_dokumen
+    await pool.query(
+      `INSERT INTO tbl_dokumen (no_dokumen, cid, jenis, id_layanan, rincian_fitur, catatan, total_tagihan, status_bayar, tanggal_cetak)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [noDokumen, cid, jenisLabel, idLayanan, rincianJson, catatan || null, tagihan, statusBayar, tanggal]
+    );
+
+    res.json({
+      status: 'success',
+      dokumen: {
+        no_dokumen: noDokumen,
+        tanggal,
+        jenis: jenisLabel,
+        termin,
+        status_bayar: statusBayar,
+        catatan,
+        total_tagihan: tagihan,
+        grand_total: grandTotal,
+        subtotal_fitur: subtotalFitur,
+        paket: {
+          id_layanan: parseInt(String(idLayanan), 10),
+          nama: layanan.nama_paket,
+          deskripsi: layanan.deskripsi_fitur,
+          estimasi_hari: layanan.estimasi_hari,
+          harga: hargaPaket,
+        },
+        fitur: rincianFitur,
+        klien: { cid: lead.cid, nama: lead.title, alamat: lead.address, telepon: lead.phone },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 export default router;
