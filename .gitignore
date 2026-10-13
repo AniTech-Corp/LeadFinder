@@ -10,6 +10,11 @@ composer.phar
 .env
 backend/.env
 
+# Node.js & TypeScript
+node_modules/
+dist/
+npm-debug.log*
+
 # OS / Editor Files
 .vscode/
 .idea/

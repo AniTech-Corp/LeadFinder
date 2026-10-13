@@ -95,14 +95,14 @@ function renderTable() {
         return;
     }
 
-    const displayLeads = currentLeads.filter(l => !l.website);
+    // Urutkan prospek tanpa website di bagian paling atas (prioritas utama)
+    const sortedLeads = [...currentLeads].sort((a, b) => {
+        if (!a.website && b.website) return -1;
+        if (a.website && !b.website) return 1;
+        return (b.score || 0) - (a.score || 0);
+    });
 
-    if (displayLeads.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="13" class="p-12 text-center text-slate-400">Semua UMKM yang ditemukan sudah memiliki website.</td></tr>`;
-        document.getElementById('showingText').innerText = `Menampilkan 0 hasil`;
-        document.getElementById('paginationContainer').innerHTML = '';
-        return;
-    }
+    const displayLeads = sortedLeads;
 
     const totalPages = Math.ceil(displayLeads.length / itemsPerPage);
     if (currentPage > totalPages) currentPage = totalPages;
@@ -159,6 +159,11 @@ function renderTable() {
 
         const trueIndex = startIndex + idx;
 
+        let webDisplay = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200">Belum Ada</span>`;
+        if (lead.website) {
+            webDisplay = `<a href="${lead.website}" target="_blank" class="text-blue-500 hover:underline flex items-center gap-1 text-xs"><i class="ri-global-line"></i> Ada</a>`;
+        }
+
         tr.innerHTML = `
             <td class="py-3 px-4"><input type="checkbox" class="table-checkbox"></td>
             <td class="py-3 px-4 text-center text-slate-500">${trueIndex + 1}</td>
@@ -172,7 +177,7 @@ function renderTable() {
             <td class="py-3 px-4">${kecamatan}</td>
             <td class="py-3 px-4">${phone}</td>
             <td class="py-3 px-4" id="td-ig-${idx}">${igDisplay}</td>
-            <td class="py-3 px-4 text-slate-400">-</td>
+            <td class="py-3 px-4">${webDisplay}</td>
             <td class="py-3 px-4 text-amber-500 font-bold"><i class="ri-star-fill"></i> ${rating}</td>
             <td class="py-3 px-4 text-slate-500"><i class="ri-chat-1-line text-slate-400"></i> ${reviews}</td>
             <td class="py-3 px-4"><div class="flex items-center gap-1.5 font-bold"><i class="ri-pie-chart-2-fill text-slate-400"></i> ${score}</div></td>
