@@ -193,7 +193,7 @@ async function dokumenRender(doc, kind) {
         body: body,
         theme: 'grid',
         styles: { fontSize: 9, cellPadding: 6, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.5 },
-        headStyles: { fillColor: [P.warna.r, P.warna.g, P.warna.b], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        headStyles: { fillColor: false, textColor: [15, 23, 42], fontStyle: 'bold', halign: 'center' },
         columnStyles: {
             0: { cellWidth: 'auto' },
             1: { cellWidth: 40, halign: 'center' },
@@ -248,21 +248,7 @@ async function dokumenRender(doc, kind) {
     // ================= FOOTER =================
     if (y > pageH - 240) { pdf.addPage(); y = 60; }
 
-    if (isInvoice) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
-        pdf.setTextColor(22, 101, 52);
-        pdf.text('INSTRUKSI PEMBAYARAN', M, y);
-        y += 14;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(71, 85, 105);
-        pdf.text('Silakan transfer ke rekening berikut:', M, y);
-        y += 13;
-        P.bank.forEach(b => { pdf.text(`Bank ${b.bank}: ${b.no} a.n ${b.atas}`, M, y); y += 12; });
-        pdf.setTextColor(100, 116, 139);
-        pdf.text('Cantumkan No. ' + (doc.no_seri || doc.no_dokumen) + ' pada berita transfer.', M, y + 2);
-        y += 22;
-    } else {
+    if (!isInvoice) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(9);
         pdf.setTextColor(30, 64, 175);
@@ -286,21 +272,6 @@ async function dokumenRender(doc, kind) {
         pdf.text(cl, M, y + 13);
         y += 13 + cl.length * 12 + 8;
     }
-
-    // Tanda tangan
-    const sigX = pageW - M - 160;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(71, 85, 105);
-    pdf.text('Hormat Kami,', sigX, y + 6);
-    pdf.setDrawColor(15, 23, 42);
-    pdf.line(sigX, y + 56, sigX + 140, y + 56);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(15, 23, 42);
-    pdf.text(P.nama, sigX, y + 68);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100, 116, 139);
-    pdf.text('Direktur', sigX, y + 80);
 
     // Footer halaman
     pdf.setFontSize(8);
