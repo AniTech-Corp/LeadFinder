@@ -864,18 +864,34 @@ function dashSameDay(a, b) {
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function onDashboardDateChange() {
+function onDashboardDateRangeChange() {
     initDashboard();
 }
 
-// Filter lead sesuai mode: "day", "all", "year_this", "year_last", atau "01".."12"
-function dashFilterLeads(allLeads, mode, refDate) {
+function onDashboardDateRangeReset() {
+    const from = document.getElementById('dash_date_from');
+    const to = document.getElementById('dash_date_to');
+    if (from) from.value = '';
+    if (to) to.value = '';
+    initDashboard();
+}
+
+// Filter lead sesuai mode: "day", "range", "all", "year_this", "year_last", atau "01".."12"
+function dashFilterLeads(allLeads, mode, refDate, from, to) {
     const ref = refDate ? new Date(refDate + 'T00:00:00') : new Date();
+    // Rentang terbuka: hanya "dari" / hanya "sampai" / keduanya (inklusif)
+    const start = from ? new Date(from + 'T00:00:00') : null;
+    const end = to ? new Date(to + 'T23:59:59.999') : null;
     return allLeads.filter(l => {
         const d = dashParseTs(l.created_at);
         if (isNaN(d.getTime())) return false;
         if (mode === 'all') return true;
         if (mode === 'day') return dashSameDay(d, ref);
+        if (mode === 'range') {
+            if (start && d < start) return false;
+            if (end && d > end) return false;
+            return true;
+        }
         if (mode === 'year_this') return d.getFullYear() === ref.getFullYear();
         if (mode === 'year_last') return d.getFullYear() === ref.getFullYear() - 1;
         if (/^(0[1-9]|1[0-2])$/.test(mode)) return (d.getMonth() + 1) === parseInt(mode, 10) && d.getFullYear() === ref.getFullYear();
@@ -907,7 +923,7 @@ function dashAggregate(leads) {
     return data;
 }
 
-function dashChartData(leads, mode) {
+function dashChartData(leads, mode, from, to) {
     const closing = leads.filter(l => ['closing', 'selesai'].includes((l.status || '').toLowerCase()));
 
     if (mode === 'day') {
@@ -918,6 +934,32 @@ function dashChartData(leads, mode) {
             values[Math.min(3, Math.floor(h / 6))]++;
         });
         return { labels, values };
+    }
+
+    if (mode === 'range') {
+        const fromD = from ? new Date(from + 'T00:00:00') : null;
+        const toD = to ? new Date(to + 'T00:00:00') : null;
+        let dayCount = null;
+        if (fromD && toD) dayCount = Math.round((toD.getTime() - fromD.getTime()) / 86400000) + 1;
+
+        // Rentang pendek (<= 31 hari) -> label per hari
+        if (dayCount && dayCount >= 1 && dayCount <= 31) {
+            const labels = [];
+            const values = [];
+            for (let i = 0; i < dayCount; i++) {
+                const d = new Date(fromD.getTime() + i * 86400000);
+                labels.push(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
+                const dayStr = dashLocalDateStr(d);
+                values.push(closing.filter(l => dashLocalDateStr(dashParseTs(l.created_at)) === dayStr).length);
+            }
+            return { labels, values };
+        }
+
+        // Rentang panjang / terbuka -> label per bulan
+        const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        const monthValues = new Array(12).fill(0);
+        closing.forEach(l => { monthValues[dashParseTs(l.created_at).getMonth()]++; });
+        return { labels: monthLabels, values: monthValues };
     }
     if (/^(0[1-9]|1[0-2])$/.test(mode)) {
         const labels = ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4', 'Minggu 5'];
@@ -1031,43 +1073,44 @@ function dashRenderChart(chart) {
 async function initDashboard(isRealtimeUpdate = false) {
     try {
         const periodFilter = document.getElementById('dash_period_filter');
-        const datePicker = document.getElementById('dash_date_picker');
+        const dateFrom = document.getElementById('dash_date_from');
+        const dateTo = document.getElementById('dash_date_to');
 
         if (periodFilter && !periodFilter.dataset.listenerAttached) {
             periodFilter.addEventListener('change', () => {
-                // Pilih periode -> hapus tanggal spesifik
-                if (datePicker) datePicker.value = '';
+                // Pilih periode (Hari Ini / Semua Waktu) -> kosongkan rentang tanggal
+                if (dateFrom) dateFrom.value = '';
+                if (dateTo) dateTo.value = '';
                 initDashboard();
             });
             periodFilter.dataset.listenerAttached = 'true';
         }
 
-        // Tentukan mode: tanggal spesifik mengalahkan filter periode
+        // Tentukan mode: rentang tanggal mengalahkan filter periode
         let mode = periodFilter ? periodFilter.value : 'today';
         let refDate = null;
-        if (datePicker && datePicker.value) {
-            mode = 'day';
-            refDate = datePicker.value;
+        const fromVal = dateFrom && dateFrom.value ? dateFrom.value : '';
+        const toVal = dateTo && dateTo.value ? dateTo.value : '';
+        if (fromVal || toVal) {
+            mode = 'range';
         } else if (mode === 'today') {
             mode = 'day';
             refDate = dashLocalDateStr();
         }
 
-        // Periode yang dipakai untuk fitur "Unduh Laporan" (format backend)
-        const period = /^(0[1-9]|1[0-2])$/.test(mode)
-            ? mode
-            : (['all', 'year_this', 'year_last'].includes(mode) ? mode : String(new Date().getMonth() + 1).padStart(2, '0'));
+        // Periode yang dipakai untuk fitur "Unduh Laporan" (format backend lama)
+        const period = (mode === 'all') ? 'all' : String(new Date().getMonth() + 1).padStart(2, '0');
         window.dashCurrentExportPeriod = period;
 
         const response = await fetch('backend/crm_api.php?action=get');
         const result = await response.json();
 
         if (result && result.data) {
-            const scoped = dashFilterLeads(result.data, mode, refDate);
+            const scoped = dashFilterLeads(result.data, mode, refDate, fromVal, toVal);
             const data = dashAggregate(scoped);
 
             dashRenderMetrics(data);
-            dashRenderChart(dashChartData(scoped, mode));
+            dashRenderChart(dashChartData(scoped, mode, fromVal, toVal));
 
             // Jadwal selalu untuk HARI INI
             const todayStr = dashLocalDateStr();
