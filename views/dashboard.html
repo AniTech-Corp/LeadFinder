@@ -7,32 +7,22 @@
             <p class="text-slate-500 font-medium text-sm mt-1">Gambaran umum seluruh prospek dan performa per kategori.
             </p>
         </div>
-        <div class="flex gap-3">
+        <div class="flex gap-3 items-center flex-wrap">
             <div class="relative">
                 <i class="ri-calendar-2-line absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
                 <select id="dash_period_filter" class="pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 appearance-none outline-none cursor-pointer">
-                    <option value="today">Hari Ini</option>
-                    <option value="all" selected>Semua Waktu</option>
-                    <option value="year_this">Tahun Ini</option>
-                    <option value="year_last">Tahun Lalu</option>
-                    <optgroup label="Bulan (Tahun Ini)">
-                        <option value="12">Desember</option>
-                        <option value="11">November</option>
-                        <option value="10">Oktober</option>
-                        <option value="09">September</option>
-                        <option value="08">Agustus</option>
-                        <option value="07">Juli</option>
-                        <option value="06">Juni</option>
-                        <option value="05">Mei</option>
-                        <option value="04">April</option>
-                        <option value="03">Maret</option>
-                        <option value="02">Februari</option>
-                        <option value="01">Januari</option>
-                    </optgroup>
+                    <option value="today" selected>Hari Ini</option>
+                    <option value="all">Semua Waktu</option>
                 </select>
                 <i class="ri-arrow-down-s-line absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
             </div>
-            <input type="date" id="dash_date_picker" title="Pilih tanggal tertentu" onchange="onDashboardDateChange()" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 outline-none cursor-pointer hover:bg-slate-50">
+            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
+                <i class="ri-calendar-line text-slate-400"></i>
+                <input type="date" id="dash_date_from" title="Dari tanggal" onchange="onDashboardDateRangeChange()" class="bg-transparent text-sm font-semibold text-slate-600 outline-none cursor-pointer">
+                <span class="text-slate-400 text-sm font-semibold">s/d</span>
+                <input type="date" id="dash_date_to" title="Sampai tanggal" onchange="onDashboardDateRangeChange()" class="bg-transparent text-sm font-semibold text-slate-600 outline-none cursor-pointer">
+                <button type="button" onclick="onDashboardDateRangeReset()" title="Bersihkan rentang tanggal" class="text-slate-300 hover:text-rose-500 transition-colors cursor-pointer"><i class="ri-close-circle-fill"></i></button>
+            </div>
             <div class="relative">
                 <i class="ri-download-2-line absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none z-10"></i>
                 <select id="downloadReportBtn" class="pl-9 pr-8 py-2 bg-primary hover:bg-blue-800 text-white rounded-lg text-sm font-semibold appearance-none outline-none cursor-pointer transition-colors relative z-0">
