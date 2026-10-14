@@ -214,6 +214,26 @@
         <main id="router-view" class="flex-1 overflow-auto p-6"></main>
     </div>
 
+    <!-- GLOBAL UI DIALOG (alert & confirm) -->
+    <div id="uiDialogOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-[420px] max-w-[92vw] shadow-2xl overflow-hidden">
+            <div class="p-6 flex flex-col items-center text-center">
+                <div id="uiDialogIconWrap" class="w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-4">
+                    <i id="uiDialogIcon" class="ri-information-line"></i>
+                </div>
+                <h3 id="uiDialogTitle" class="font-bold text-lg text-slate-800">Informasi</h3>
+                <p id="uiDialogMessage" class="text-slate-500 text-sm font-medium mt-2 leading-relaxed break-words w-full"></p>
+            </div>
+            <div class="px-6 pb-6 flex gap-3">
+                <button type="button" id="uiDialogCancelBtn" class="hidden flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-semibold transition-colors">Batal</button>
+                <button type="button" id="uiDialogOkBtn" class="flex-1 px-4 py-2.5 bg-primary hover:bg-blue-800 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GLOBAL TOAST NOTIFICATION -->
+    <div id="uiToastContainer" class="fixed top-5 right-5 z-[110] flex flex-col gap-2 items-end pointer-events-none"></div>
+
     <script src="assets/js/settings.js"></script>
     <script src="assets/js/dokumen_template.js"></script>
     <script src="assets/js/app.js"></script>
@@ -237,14 +257,7 @@
             }
         })();
 
-        // Logout Event
-        document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
-            e.preventDefault();
-            try {
-                await fetch('/api/auth/logout', { method: 'POST' });
-            } catch(err) {}
-            window.location.href = '/login.html';
-        });
+        // Logout Event: ditangani di assets/js/app.js (dengan dialog konfirmasi).
 
         // Update Time & Date
         function updateTime() {
@@ -261,7 +274,7 @@
             const el = document.getElementById('waTemplate');
             if(el) {
                 navigator.clipboard.writeText(el.innerText);
-                alert("Template berhasil disalin!");
+                uiToast("Template berhasil disalin!");
             }
         }
 

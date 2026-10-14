@@ -1,17 +1,136 @@
-// --- History Management ---
-function loadCityHistory() {
-    const seed = (window.APP_SETTINGS && window.APP_SETTINGS.lokasi && window.APP_SETTINGS.lokasi.riwayat_kota_seed) || ["Bekasi", "Jakarta Selatan", "Bandung"];
-    const history = JSON.parse(localStorage.getItem('citySearchHistory') || JSON.stringify(seed));
-    const datalist = document.getElementById('cityHistory');
-    if (datalist) {
-        datalist.innerHTML = '';
-        history.forEach(city => {
-            const option = document.createElement('option');
-            option.value = city;
-            datalist.appendChild(option);
-        });
-    }
+// ===== GLOBAL UI: ALERT / CONFIRM / TOAST =====
+const UI_DIALOG_TYPES = {
+    info: { icon: 'ri-information-line', color: 'bg-blue-50 text-blue-500', title: 'Informasi' },
+    success: { icon: 'ri-checkbox-circle-line', color: 'bg-emerald-50 text-emerald-500', title: 'Berhasil' },
+    warning: { icon: 'ri-error-warning-line', color: 'bg-amber-50 text-amber-500', title: 'Perhatian' },
+    error: { icon: 'ri-close-circle-line', color: 'bg-rose-50 text-rose-500', title: 'Gagal' },
+    question: { icon: 'ri-question-line', color: 'bg-blue-50 text-blue-500', title: 'Konfirmasi' },
+};
+
+let _uiDialogResolve = null;
+let _uiDialogMode = 'alert';
+let _uiDialogPrevOverflow = '';
+
+function _uiEscapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+function _uiDialogEls() {
+    return {
+        overlay: document.getElementById('uiDialogOverlay'),
+        iconWrap: document.getElementById('uiDialogIconWrap'),
+        icon: document.getElementById('uiDialogIcon'),
+        title: document.getElementById('uiDialogTitle'),
+        message: document.getElementById('uiDialogMessage'),
+        cancel: document.getElementById('uiDialogCancelBtn'),
+        ok: document.getElementById('uiDialogOkBtn'),
+    };
+}
+
+function _uiDialogShow(mode, message, opts) {
+    opts = opts || {};
+    const els = _uiDialogEls();
+
+    // Fallback bila markup dialog tidak tersedia
+    if (!els.overlay) {
+        if (mode === 'confirm') return Promise.resolve(window.confirm(message));
+        window.alert(message);
+        return Promise.resolve(true);
+    }
+
+    const t = UI_DIALOG_TYPES[opts.type] || UI_DIALOG_TYPES.info;
+    _uiDialogMode = mode;
+
+    els.icon.className = t.icon;
+    els.iconWrap.className = `w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-4 ${t.color}`;
+    els.title.innerText = opts.title || (mode === 'confirm' ? 'Konfirmasi' : t.title);
+    els.message.innerText = message == null ? '' : String(message);
+
+    if (mode === 'confirm') {
+        els.cancel.classList.remove('hidden');
+        els.cancel.innerText = opts.cancelText || 'Batal';
+    } else {
+        els.cancel.classList.add('hidden');
+    }
+    els.ok.innerText = opts.confirmText || 'OK';
+
+    els.overlay.style.display = 'flex';
+    _uiDialogPrevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => { try { els.ok.focus(); } catch (e) { /* noop */ } }, 30);
+
+    return new Promise(resolve => { _uiDialogResolve = resolve; });
+}
+
+function _uiDialogClose(result) {
+    const els = _uiDialogEls();
+    if (els.overlay) els.overlay.style.display = 'none';
+    document.body.style.overflow = _uiDialogPrevOverflow || '';
+    const resolve = _uiDialogResolve;
+    _uiDialogResolve = null;
+    if (resolve) resolve(result);
+}
+
+function uiAlert(message, opts) {
+    return _uiDialogShow('alert', message, opts);
+}
+
+function uiConfirm(message, opts) {
+    return _uiDialogShow('confirm', message, opts);
+}
+
+function uiToast(message, opts) {
+    opts = opts || {};
+    const container = document.getElementById('uiToastContainer');
+    if (!container) return;
+
+    const styles = {
+        success: { icon: 'ri-checkbox-circle-fill', color: 'text-emerald-500', border: 'border-emerald-100' },
+        error: { icon: 'ri-close-circle-fill', color: 'text-rose-500', border: 'border-rose-100' },
+        warning: { icon: 'ri-error-warning-fill', color: 'text-amber-500', border: 'border-amber-100' },
+        info: { icon: 'ri-information-fill', color: 'text-blue-500', border: 'border-blue-100' },
+    };
+    const s = styles[opts.type] || styles.success;
+
+    const el = document.createElement('div');
+    el.className = `pointer-events-auto bg-white border ${s.border} shadow-lg rounded-xl px-4 py-3 flex items-start gap-3 max-w-[360px] transition-all duration-300 opacity-0 translate-x-4`;
+    el.innerHTML = `
+        <i class="${s.icon} ${s.color} text-xl mt-0.5 shrink-0"></i>
+        <p class="text-sm font-semibold text-slate-700 leading-snug break-words flex-1">${_uiEscapeHtml(message)}</p>
+        <button type="button" class="text-slate-300 hover:text-slate-500 ml-1 shrink-0 transition-colors"><i class="ri-close-line text-lg"></i></button>
+    `;
+    container.appendChild(el);
+    requestAnimationFrame(() => el.classList.remove('opacity-0', 'translate-x-4'));
+
+    const dismiss = () => {
+        el.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => el.remove(), 300);
+    };
+    el.querySelector('button').addEventListener('click', dismiss);
+    setTimeout(dismiss, opts.duration || 3500);
+}
+
+// Wire event dialog (klik tombol/overlay + keyboard Esc/Enter)
+function _uiDialogInit() {
+    const els = _uiDialogEls();
+    if (!els.overlay || els.overlay.dataset.wired) return;
+    els.overlay.dataset.wired = 'true';
+
+    els.ok.addEventListener('click', () => _uiDialogClose(true));
+    els.cancel.addEventListener('click', () => _uiDialogClose(false));
+    els.overlay.addEventListener('click', (e) => {
+        if (e.target === els.overlay) _uiDialogClose(_uiDialogMode === 'confirm' ? false : true);
+    });
+    document.addEventListener('keydown', (e) => {
+        const overlay = document.getElementById('uiDialogOverlay');
+        if (!overlay || overlay.style.display === 'none' || overlay.style.display === '') return;
+        if (e.key === 'Escape') { e.preventDefault(); _uiDialogClose(_uiDialogMode === 'confirm' ? false : true); }
+        else if (e.key === 'Enter') { e.preventDefault(); _uiDialogClose(true); }
+    });
+}
+_uiDialogInit();
 
 // --- SPA Router ---
 async function loadView(viewName) {
@@ -286,7 +405,7 @@ async function startSearch() {
     const city = cityInput.value.trim();
 
     if (!city) {
-        alert("Mohon masukkan Kota / Area");
+        uiAlert("Mohon masukkan Kota / Area", { type: 'warning' });
         return;
     }
 
@@ -296,7 +415,7 @@ async function startSearch() {
     const checkedCats = Array.from(document.querySelectorAll('.cat-checkbox.active input:checked')).map(cb => cb.value);
 
     if (checkedCats.length === 0) {
-        alert("Mohon pilih minimal 1 kategori UMKM");
+        uiAlert("Mohon pilih minimal 1 kategori UMKM", { type: 'warning' });
         return;
     }
 
@@ -340,7 +459,7 @@ async function startSearch() {
                 ? `Pencarian gagal: ${searchErrors.join(' | ')}`
                 : `Tidak ada hasil untuk ${checkedCats.join(', ')} di ${city}. Coba ubah kota atau kategori.`;
             document.getElementById('tableBody').innerHTML = `<tr><td colspan="13" class="p-12 text-center text-rose-500"><i class="ri-error-warning-line text-3xl mb-3 block"></i>${msg}</td></tr>`;
-            alert(msg);
+            uiAlert(msg, { type: 'error', title: 'Pencarian Gagal' });
             return;
         }
 
@@ -368,7 +487,7 @@ async function startSearch() {
         runDeepHunt();
 
     } catch (e) {
-        alert("Gagal melakukan pencarian: " + e.message);
+        uiAlert("Gagal melakukan pencarian: " + e.message, { type: 'error' });
     } finally {
         btn.innerHTML = `<i class="ri-play-fill text-lg"></i> Mulai Pencarian`;
         btn.disabled = false;
@@ -562,7 +681,7 @@ function initApp() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (confirm('Apakah Anda yakin ingin keluar?')) {
+            if (await uiConfirm('Apakah Anda yakin ingin keluar?', { type: 'warning' })) {
                 await fetch('backend/auth.php?action=logout');
                 window.location.href = 'login.php';
             }
@@ -570,19 +689,9 @@ function initApp() {
     }
 
     // Bind dropdown toggle
-    const cockpitToggle = document.getElementById('cockpitToggle');
-    const cockpitDropdown = document.getElementById('cockpitDropdown');
-    const cockpitCaret = document.getElementById('cockpitCaret');
-    if (cockpitToggle && cockpitDropdown && cockpitCaret) {
-        cockpitToggle.addEventListener('click', () => {
-            cockpitDropdown.classList.toggle('hidden');
-            if (cockpitDropdown.classList.contains('hidden')) {
-                cockpitCaret.classList.replace('ri-arrow-down-s-line', 'ri-arrow-right-s-line');
-            } else {
-                cockpitCaret.classList.replace('ri-arrow-right-s-line', 'ri-arrow-down-s-line');
-            }
-        });
-    }
+    // Catatan: cockpitToggle sudah punya handler di index.html (pakai rotate-180,
+    // sesuai kelas transition-transform pada caret). Jangan bind ulang di sini
+    // agar classList.toggle('hidden') tidak saling membatalkan.
 }
 
 async function updateSidebarBadges() {
@@ -1343,12 +1452,12 @@ async function exportDashboardReport(period, formatInput) {
                 doc.save(baseFilename + ".pdf");
             }
 
-            alert("Berhasil mengunduh " + result.data.length + " data laporan!");
+            uiToast("Berhasil mengunduh " + result.data.length + " data laporan!");
         } else {
-            alert("Tidak ada data pada periode ini untuk diunduh.");
+            uiAlert("Tidak ada data pada periode ini untuk diunduh.", { type: 'warning' });
         }
     } catch (e) {
-        alert("Gagal mengunduh laporan: " + e.message);
+        uiAlert("Gagal mengunduh laporan: " + e.message, { type: 'error' });
     } finally {
         const btn = document.getElementById('downloadReportBtn');
         if (btn) {
@@ -1444,12 +1553,12 @@ async function exportAllFromDB() {
             XLSX.utils.book_append_sheet(workbook, worksheet, "Prospek UMKM");
 
             XLSX.writeFile(workbook, `Prospek_UMKM_${new Date().getTime()}.xlsx`);
-            alert("Berhasil mengunduh " + result.data.length + " data!");
+            uiToast("Berhasil mengunduh " + result.data.length + " data!");
         } else {
-            alert("Belum ada data di database untuk diekspor.");
+            uiAlert("Belum ada data di database untuk diekspor.", { type: 'warning' });
         }
     } catch (e) {
-        alert("Gagal mengekspor data: " + e.message);
+        uiAlert("Gagal mengekspor data: " + e.message, { type: 'error' });
     } finally {
         const btn = document.getElementById('exportBtn');
         if (btn) {
@@ -1762,10 +1871,10 @@ async function updateLeadStatus(cid, newStatus) {
             }
             updateSidebarBadges(); // Refresh sidebar numbers
         } else {
-            alert('Gagal mengupdate status: ' + result.error);
+            uiAlert('Gagal mengupdate status: ' + result.error, { type: 'error' });
         }
     } catch (e) {
-        alert('Gagal menghubungi server.');
+        uiAlert('Gagal menghubungi server.', { type: 'error' });
     }
 }
 
@@ -1778,10 +1887,10 @@ async function updateLeadJadwal(cid, newJadwal) {
         });
         const result = await response.json();
         if (result.status !== 'success') {
-            alert('Gagal menyimpan jadwal: ' + result.error);
+            uiAlert('Gagal menyimpan jadwal: ' + result.error, { type: 'error' });
         }
     } catch (e) {
-        alert('Gagal menghubungi server untuk menyimpan jadwal.');
+        uiAlert('Gagal menghubungi server untuk menyimpan jadwal.', { type: 'error' });
     }
 }
 
@@ -2223,7 +2332,7 @@ function reconstructDocRow(row) {
 async function redownloadExistingDoc(noDokumen) {
     const row = adminDokumenList.find(d => String(d.no_dokumen) === String(noDokumen));
     if (!row) {
-        alert('Data dokumen tidak ditemukan. Muat ulang halaman lalu coba lagi.');
+        uiAlert('Data dokumen tidak ditemukan. Muat ulang halaman lalu coba lagi.', { type: 'error' });
         return;
     }
     await loadAdminCatalog();
@@ -2237,7 +2346,7 @@ async function redownloadExistingDoc(noDokumen) {
 async function editExistingDoc(noDokumen) {
     const row = adminDokumenList.find(d => String(d.no_dokumen) === String(noDokumen));
     if (!row) {
-        alert('Data dokumen tidak ditemukan. Muat ulang halaman lalu coba lagi.');
+        uiAlert('Data dokumen tidak ditemukan. Muat ulang halaman lalu coba lagi.', { type: 'error' });
         return;
     }
     await loadAdminCatalog();
@@ -2345,7 +2454,7 @@ async function generatePdf() {
     const brand = document.getElementById('pdfBrand').value;
 
     if (!id_layanan) {
-        alert('Pilih paket layanan terlebih dahulu.');
+        uiAlert('Pilih paket layanan terlebih dahulu.', { type: 'warning' });
         return;
     }
 
@@ -2441,7 +2550,7 @@ async function generatePdf() {
             initAdministrasi(jenis === 'invoice' ? 'administrasi_invoice' : 'administrasi_proposal');
         }
     } catch (e) {
-        alert('Gagal generate dokumen: ' + e.message);
+        uiAlert('Gagal generate dokumen: ' + e.message, { type: 'error' });
         btn.disabled = false;
         btn.innerHTML = '<i class="ri-printer-line"></i> Generate & Unduh PDF';
     }
@@ -2461,7 +2570,7 @@ function sendWaPdf() {
     }
 
     if (!phone) {
-        alert('Nomor kontak WhatsApp klien tidak tersedia.');
+        uiAlert('Nomor kontak WhatsApp klien tidak tersedia.', { type: 'warning' });
         return;
     }
 
