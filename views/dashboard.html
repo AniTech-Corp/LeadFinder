@@ -1,7 +1,7 @@
 <div class="flex flex-col gap-6 max-w-[1200px] mx-auto w-full pb-10">
 
     <!-- HEADER -->
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-2">
         <div>
             <h2 class="font-bold text-2xl text-slate-800">Dashboard Ringkasan</h2>
             <p class="text-slate-500 font-medium text-sm mt-1">Gambaran umum seluruh prospek dan performa per kategori.
@@ -16,7 +16,7 @@
                 </select>
                 <i class="ri-arrow-down-s-line absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
             </div>
-            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
+            <div class="flex items-center gap-2 flex-wrap bg-white border border-slate-200 rounded-lg px-3 py-1.5">
                 <i class="ri-calendar-line text-slate-400"></i>
                 <input type="date" id="dash_date_from" title="Dari tanggal" onchange="onDashboardDateRangeChange()" class="bg-transparent text-sm font-semibold text-slate-600 outline-none cursor-pointer">
                 <span class="text-slate-400 text-sm font-semibold">s/d</span>
@@ -100,7 +100,7 @@
                 <button class="text-sm font-semibold text-blue-500 hover:text-blue-600">Lihat Detail</button>
             </div>
 
-            <div id="dashCategoryGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+            <div id="dashCategoryGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
         </div>
 
         <!-- STATISTIK PRIORITAS -->

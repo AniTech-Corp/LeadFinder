@@ -838,7 +838,7 @@ function renderPengaturanDinamis() {
             const empty = (v === '' || v === null || v === undefined);
             return `<div class="flex justify-between gap-4 py-1.5 border-b border-slate-50 last:border-0">
                 <dt class="text-slate-500 font-medium shrink-0">${esc(k)}</dt>
-                <dd class="text-slate-700 font-semibold text-right break-words">${empty ? '<span class="text-slate-300">&mdash;</span>' : esc(v)}</dd>
+                <dd class="text-slate-700 font-semibold text-right break-words min-w-0">${empty ? '<span class="text-slate-300">&mdash;</span>' : esc(v)}</dd>
             </div>`;
         }).join('');
         return el;
@@ -1098,9 +1098,9 @@ function dashRenderMetrics(data) {
             const color = DASH_CAT_COLORS[i % DASH_CAT_COLORS.length];
             const val = data.industry[c.nama] || 0;
             return `<div class="border border-slate-100 bg-slate-50 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors group cursor-pointer">
-                <div class="w-10 h-10 rounded-full ${color} flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="${c.ikon}"></i></div>
-                <div>
-                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">${c.nama}</div>
+                <div class="w-10 h-10 rounded-full ${color} flex items-center justify-center text-lg group-hover:scale-110 transition-transform shrink-0"><i class="${c.ikon}"></i></div>
+                <div class="min-w-0">
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wide leading-tight">${c.nama}</div>
                     <div class="text-lg font-extrabold text-slate-700">${val}</div>
                 </div>
             </div>`;
