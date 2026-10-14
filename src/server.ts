@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
+import net from 'node:net';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { initDatabase } from './config/db.js';
@@ -13,6 +14,11 @@ import docsRoutes from './routes/docs.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 
 dotenv.config();
+
+// Perbaikan koneksi keluar: pada environment dengan IPv4 + IPv6 (NAT64),
+// Node "Happy Eyeballs" (autoSelectFamily) bisa gagal menyambung ke host
+// seperti api.apify.com. Nonaktifkan agar memakai alamat IPv4 pertama yang valid.
+net.setDefaultAutoSelectFamily(false);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

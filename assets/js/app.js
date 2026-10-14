@@ -310,6 +310,7 @@ async function startSearch() {
 
     try {
         let allResults = [];
+        const searchErrors = [];
 
         const promises = checkedCats.map(async (cat) => {
             const query = `${cat} di ${city}`;
@@ -320,15 +321,28 @@ async function startSearch() {
                     body: JSON.stringify({ q: query, type: 'places' })
                 });
                 const data = await res.json();
+                if (data.error) {
+                    searchErrors.push(`${cat}: ${data.error}`);
+                }
                 if (data.places) {
                     data.places.forEach(p => { p.searchCategory = cat; allResults.push(p); });
                 }
             } catch (e) {
-                console.error("Failed to fetch", cat);
+                console.error("Failed to fetch", cat, e);
+                searchErrors.push(`${cat}: ${e.message || 'gagal terhubung ke server'}`);
             }
         });
 
         await Promise.all(promises);
+
+        if (allResults.length === 0) {
+            const msg = searchErrors.length
+                ? `Pencarian gagal: ${searchErrors.join(' | ')}`
+                : `Tidak ada hasil untuk ${checkedCats.join(', ')} di ${city}. Coba ubah kota atau kategori.`;
+            document.getElementById('tableBody').innerHTML = `<tr><td colspan="13" class="p-12 text-center text-rose-500"><i class="ri-error-warning-line text-3xl mb-3 block"></i>${msg}</td></tr>`;
+            alert(msg);
+            return;
+        }
 
         const unique = [];
         const seen = new Set();
