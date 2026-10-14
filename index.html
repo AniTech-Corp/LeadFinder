@@ -59,19 +59,56 @@
         .table-checkbox { appearance: none; width: 16px; height: 16px; border: 1.5px solid #cbd5e1; border-radius: 4px; outline: none; cursor: pointer; position: relative; }
         .table-checkbox:checked { background-color: #3b82f6; border-color: #3b82f6; }
         .table-checkbox:checked::after { content: ''; position: absolute; left: 4.5px; top: 1px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+        /* ===== Sidebar: rail ikon <-> full ===== */
+        #appSidebar { transition: width .3s ease, transform .3s ease; }
+        #appSidebar .sidebar-label,
+        #appSidebar .sidebar-brand-text,
+        #appSidebar .sidebar-section,
+        #appSidebar .sidebar-footer { transition: opacity .2s ease; }
+
+        body.sidebar-collapsed #appSidebar { width: 72px; }
+        body.sidebar-collapsed #appSidebar .sidebar-brand-text,
+        body.sidebar-collapsed #appSidebar .sidebar-label,
+        body.sidebar-collapsed #appSidebar .sidebar-section,
+        body.sidebar-collapsed #appSidebar .sidebar-footer { display: none; }
+
+        body.sidebar-collapsed #appSidebar .sidebar-logo { padding-left: 0; padding-right: 0; justify-content: center; }
+        body.sidebar-collapsed #appSidebar .sidebar-section-wrap { padding-left: .5rem; padding-right: .5rem; }
+        body.sidebar-collapsed #appSidebar .nav-link { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
+        body.sidebar-collapsed #appSidebar .nav-link > span { display: none; }        /* badge count */
+        body.sidebar-collapsed #appSidebar .nav-link > div { justify-content: center; gap: 0; }
+
+        /* Sidebar jadi drawer overlay HANYA di HP (<768px) saat dibuka full.
+           Di tablet (768-1023px) sidebar dibuka full tapi tetap mengalir (statis). */
+        #sidebarBackdrop { display: none; }
+        @media (max-width: 767.98px) {
+            body.sidebar-expanded #appSidebar {
+                position: fixed; top: 0; bottom: 0; left: 0; z-index: 50; width: 260px;
+                box-shadow: 0 0 40px rgba(0,0,0,.18);
+            }
+            body.sidebar-expanded #sidebarBackdrop { display: block; }
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden antialiased">
+    <script>
+        // Set status sidebar sebelum render (hindari kedip): full di desktop, rel ikon di mobile.
+        (function () {
+            var collapsed = window.innerWidth < 1024;
+            document.body.classList.add(collapsed ? 'sidebar-collapsed' : 'sidebar-expanded');
+        })();
+    </script>
 
     <!-- SIDEBAR -->
-    <aside class="w-[260px] bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-20 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+    <aside id="appSidebar" class="w-[260px] bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-20 h-full overflow-y-auto overflow-x-hidden shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div>
             <!-- Logo -->
-            <div class="h-20 flex items-center px-8 gap-3">
-                <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center text-xl">
+            <div class="sidebar-logo shrink-0 h-16 md:h-20 flex items-center px-8 gap-3">
+                <div class="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center text-xl shrink-0">
                     <i class="ri-bar-chart-2-fill"></i>
                 </div>
-                <div class="flex flex-col">
+                <div class="sidebar-brand-text flex flex-col">
                     <span id="brandSidebarTitle" class="font-bold text-lg text-primary leading-tight">UMKM</span>
                     <span id="brandSidebarSubtitle" class="text-sm font-medium text-slate-500 leading-tight">Lead Finder</span>
                 </div>
@@ -79,89 +116,89 @@
             
             <!-- Navigation -->
             <nav class="px-4 py-4 flex flex-col gap-1.5">
-                <a href="#" data-view="dashboard" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-light text-primary font-semibold transition-colors">
-                    <i class="ri-home-5-line text-lg"></i>
-                    <span>Dashboard</span>
+                <a href="#" data-view="dashboard" title="Dashboard" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-light text-primary font-semibold transition-colors">
+                    <i class="ri-home-5-line text-lg shrink-0"></i>
+                    <span class="sidebar-label">Dashboard</span>
                 </a>
-                <a href="#" data-view="pencarian" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
-                    <i class="ri-search-line text-lg"></i>
-                    <span>Pencarian</span>
+                <a href="#" data-view="pencarian" title="Pencarian" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
+                    <i class="ri-search-line text-lg shrink-0"></i>
+                    <span class="sidebar-label">Pencarian</span>
                 </a>
-                <a href="#" data-view="database" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
-                    <i class="ri-database-2-line text-lg"></i>
-                    <span>Database Tersimpan</span>
+                <a href="#" data-view="database" title="Database Tersimpan" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
+                    <i class="ri-database-2-line text-lg shrink-0"></i>
+                    <span class="sidebar-label">Database Tersimpan</span>
                 </a>
             </nav>
             
             <!-- Section: Lead Cockpit -->
-            <div class="px-6 mt-4 mb-2">
-                <button type="button" id="cockpitToggle" class="w-full flex items-center justify-between text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest mb-2 px-2 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none">
+            <div class="sidebar-section-wrap px-6 mt-4 mb-2">
+                <button type="button" id="cockpitToggle" class="sidebar-section w-full flex items-center justify-between text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest mb-2 px-2 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none">
                     <span>Lead Cockpit</span>
                     <i id="cockpitCaret" class="ri-arrow-down-s-line text-sm transition-transform duration-200"></i>
                 </button>
                 <div id="cockpitDropdown" class="flex flex-col gap-0.5">
-                    <a href="#" data-view="cockpit_prioritas" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-fire-line text-lg text-slate-400"></i> Prioritas</div>
+                    <a href="#" data-view="cockpit_prioritas" title="Prioritas" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-fire-line text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Prioritas</span></div>
                         <span id="badge_prioritas" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
-                    <a href="#" data-view="cockpit_baru" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 text-blue-600 font-medium transition-colors text-[13px] border-l-[3px] border-blue-600">
-                        <div class="flex items-center gap-3 -ml-[3px]"><i class="ri-user-add-line text-lg"></i> Prospek Baru</div>
+                    <a href="#" data-view="cockpit_baru" title="Prospek Baru" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 text-blue-600 font-medium transition-colors text-[13px] border-l-[3px] border-blue-600">
+                        <div class="flex items-center gap-3 -ml-[3px]"><i class="ri-user-add-line text-lg shrink-0"></i> <span class="sidebar-label">Prospek Baru</span></div>
                         <span id="badge_baru" class="text-[10px] font-bold bg-blue-100/80 text-blue-600 px-2 py-0.5 rounded-full">0</span>
                     </a>
-                    <a href="#" data-view="cockpit_telepon" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-phone-line text-lg text-slate-400"></i> Telepon lagi</div>
+                    <a href="#" data-view="cockpit_telepon" title="Telepon lagi" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-phone-line text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Telepon lagi</span></div>
                         <span id="badge_telepon" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
-                    <a href="#" data-view="cockpit_followup" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-chat-1-line text-lg text-slate-400"></i> Follow up</div>
+                    <a href="#" data-view="cockpit_followup" title="Follow up" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-chat-1-line text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Follow up</span></div>
                         <span id="badge_followup" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
-                    <a href="#" data-view="cockpit_demo" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-bookmark-line text-lg text-slate-400"></i> Demo</div>
+                    <a href="#" data-view="cockpit_demo" title="Demo" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-bookmark-line text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Demo</span></div>
                         <span id="badge_demo" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
-                    <a href="#" data-view="cockpit_cut" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-delete-bin-line text-lg text-slate-400"></i> Cut</div>
+                    <a href="#" data-view="cockpit_cut" title="Cut" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-delete-bin-line text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Cut</span></div>
                         <span id="badge_cut" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
                     <div class="my-1 border-t border-slate-200"></div>
-                    <a href="#" data-view="cockpit_antrian" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-stack-fill text-lg text-slate-400"></i> Antrian Project</div>
+                    <a href="#" data-view="cockpit_antrian" title="Antrian Project" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-stack-fill text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Antrian Project</span></div>
                         <span id="badge_antrian" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
-                    <a href="#" data-view="cockpit_selesai" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-checkbox-circle-fill text-lg text-slate-400"></i> Project Selesai</div>
+                    <a href="#" data-view="cockpit_selesai" title="Project Selesai" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-checkbox-circle-fill text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Project Selesai</span></div>
                         <span id="badge_selesai" class="text-xs font-semibold text-slate-500">0</span>
                     </a>
                 </div>
             </div>
             
             <!-- Section: Administrasi -->
-            <div class="px-6 mb-2">
-                <button type="button" id="adminToggle" class="w-full flex items-center justify-between text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest mb-2 px-2 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none">
+            <div class="sidebar-section-wrap px-6 mb-2">
+                <button type="button" id="adminToggle" class="sidebar-section w-full flex items-center justify-between text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest mb-2 px-2 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none">
                     <span>Administrasi</span>
                     <i id="adminCaret" class="ri-arrow-down-s-line text-sm transition-transform duration-200"></i>
                 </button>
                 <div id="adminDropdown" class="flex flex-col gap-0.5">
-                    <a href="#" data-view="administrasi_proposal" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-file-text-line text-lg text-slate-400"></i> Proposal Penawaran</div>
+                    <a href="#" data-view="administrasi_proposal" title="Proposal Penawaran" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-file-text-line text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Proposal Penawaran</span></div>
                     </a>
-                    <a href="#" data-view="administrasi_invoice" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
-                        <div class="flex items-center gap-3"><i class="ri-bank-card-line text-lg text-slate-400"></i> Invoice & Tagihan</div>
+                    <a href="#" data-view="administrasi_invoice" title="Invoice & Tagihan" class="nav-link flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium transition-colors text-[13px]">
+                        <div class="flex items-center gap-3"><i class="ri-bank-card-line text-lg text-slate-400 shrink-0"></i> <span class="sidebar-label">Invoice & Tagihan</span></div>
                     </a>
                 </div>
             </div>
             
             <nav class="px-4 py-2 flex flex-col border-t border-slate-200 mt-2 pt-4">
-                <a href="#" data-view="pengaturan" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
-                    <i class="ri-settings-4-line text-lg"></i>
-                    <span>Pengaturan</span>
+                <a href="#" data-view="pengaturan" title="Pengaturan" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium transition-colors">
+                    <i class="ri-settings-4-line text-lg shrink-0"></i>
+                    <span class="sidebar-label">Pengaturan</span>
                 </a>
             </nav>
         </div>
         
         <!-- Sidebar Footer -->
-        <div class="p-8 text-center mt-auto">
+        <div class="sidebar-footer shrink-0 p-8 text-center mt-auto">
             <div class="w-full flex justify-center mb-4 text-blue-200">
                 <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M10 70H110V75H10V70Z" fill="#E2E8F0"/>
@@ -179,27 +216,35 @@
         </div>
     </aside>
 
+    <!-- BACKDROP untuk drawer sidebar di mobile -->
+    <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900/50 z-40"></div>
+
     <!-- MAIN AREA -->
     <div class="flex-1 flex flex-col min-w-0 bg-surface">
         
         <!-- HEADER -->
-        <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
-            <div>
-                <h1 class="font-bold text-[22px] text-slate-800 tracking-tight">Selamat Datang!</h1>
-                <p class="text-[13px] text-slate-500 mt-1 font-medium">Temukan dan kelola prospek UMKM yang belum memiliki <strong class="text-slate-700">website</strong>.<br>Dapatkan data lengkap, termasuk kontak, media sosial, dan potensi bisnis.</p>
+        <header class="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between gap-3 px-4 md:px-8 flex-shrink-0">
+            <div class="flex items-center gap-2 md:gap-3 min-w-0">
+                <button type="button" id="sidebarToggle" title="Buka/tutup menu" class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors focus:outline-none">
+                    <i class="ri-menu-2-line text-xl"></i>
+                </button>
+                <div class="min-w-0">
+                    <h1 class="font-bold text-lg md:text-[22px] text-slate-800 tracking-tight truncate">Selamat Datang!</h1>
+                    <p class="hidden md:block text-[13px] text-slate-500 mt-1 font-medium">Temukan dan kelola prospek UMKM yang belum memiliki <strong class="text-slate-700">website</strong>.<br>Dapatkan data lengkap, termasuk kontak, media sosial, dan potensi bisnis.</p>
+                </div>
             </div>
             
-            <div class="flex items-center gap-6">
-                <div class="flex items-center gap-2 text-[13px] text-slate-500 font-medium">
+            <div class="flex items-center gap-3 md:gap-6 shrink-0">
+                <div class="hidden lg:flex items-center gap-2 text-[13px] text-slate-500 font-medium">
                     <i class="ri-calendar-event-line text-base text-slate-400"></i>
                     <span id="currentDate">10 Oktober 2026</span>
                 </div>
-                <div class="flex items-center gap-2 text-[13px] text-slate-500 font-medium">
+                <div class="hidden lg:flex items-center gap-2 text-[13px] text-slate-500 font-medium">
                     <i class="ri-time-line text-base text-slate-400"></i>
                     <span id="currentTime">14:32</span>
                 </div>
-                <div class="flex items-center gap-3 pl-6 border-l border-slate-200">
-                    <div id="userAvatar" class="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-[13px]">
+                <div class="flex items-center gap-3 pl-0 md:pl-6 border-l-0 md:border-l border-slate-200">
+                    <div id="userAvatar" class="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-[13px] shrink-0">
                         A
                     </div>
                     <div class="flex flex-col">
@@ -211,7 +256,7 @@
         </header>
 
         <!-- CONTENT SCROLL AREA -->
-        <main id="router-view" class="flex-1 overflow-auto p-6"></main>
+        <main id="router-view" class="flex-1 overflow-auto p-4 md:p-6"></main>
     </div>
 
     <!-- GLOBAL UI DIALOG (alert & confirm) -->
@@ -302,7 +347,41 @@
             }
         });
 
-        // Sidebar Toggles
+        // Sidebar collapse (rail ikon) / drawer + adaptif multi-layar
+        (function () {
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            const isPhone = () => window.innerWidth < 768;    // <768: drawer overlay
+            const isCompact = () => window.innerWidth < 1024; // <1024: default rail ikon
+            const isCollapsed = () => document.body.classList.contains('sidebar-collapsed');
+            const setCollapsed = (collapsed) => {
+                document.body.classList.toggle('sidebar-collapsed', collapsed);
+                document.body.classList.toggle('sidebar-expanded', !collapsed);
+            };
+
+            // Klik hamburger: buka (full) / tutup (rail ikon)
+            toggleBtn?.addEventListener('click', () => setCollapsed(!isCollapsed()));
+            // Klik backdrop: tutup drawer
+            backdrop?.addEventListener('click', () => setCollapsed(true));
+            // Esc: tutup drawer (khusus mode overlay di HP)
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isPhone()) setCollapsed(true); });
+            // Pilih menu di HP: tutup drawer otomatis
+            document.addEventListener('click', (e) => {
+                if (isPhone() && e.target.closest('.nav-link')) setCollapsed(true);
+            });
+
+            // Adaptif: reset ke default tier saat jendela melewati batas 1024px
+            let lastCompact = isCompact();
+            window.addEventListener('resize', () => {
+                const compact = isCompact();
+                if (compact !== lastCompact) {
+                    lastCompact = compact;
+                    setCollapsed(compact); // <1024 -> rail ikon; >=1024 -> full
+                }
+            });
+        })();
+
+        // Sidebar Section Toggles (Lead Cockpit & Administrasi)
         document.getElementById('cockpitToggle')?.addEventListener('click', () => {
             const dropdown = document.getElementById('cockpitDropdown');
             const caret = document.getElementById('cockpitCaret');
