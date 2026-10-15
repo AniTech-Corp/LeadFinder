@@ -344,67 +344,56 @@ function renderSosmedBadges(lead) {
         try { sosmed = JSON.parse(sosmed); } catch (e) { sosmed = null; }
     }
 
-    const cleanTitle = (lead.title || '')
-        .replace(/[^a-zA-Z0-9\s]/g, '')
-        .trim()
-        .replace(/\s+/g, '.')
-        .toLowerCase();
-    const simpleTitle = (lead.title || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    const targetHandle = cleanTitle || simpleTitle;
-
-    // Fallback jika belum ada sosmed_data tapi ada data nomor HP / IG / title
-    if (!sosmed) {
-        const phone = lead.phoneNumber || lead.phone;
-        const waLink = phone ? `https://wa.me/${phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}` : null;
-        let igLink = (lead.igUrl && lead.igUrl.includes('http') && !lead.igUrl.includes('/explore/tags/')) ? lead.igUrl : null;
-        if (!igLink && targetHandle) {
-            igLink = `https://www.instagram.com/${targetHandle}/`;
-        }
-        sosmed = {
-            whatsapp: waLink,
-            instagram: igLink,
-            tiktok: targetHandle ? `https://www.tiktok.com/@${targetHandle}` : null,
-            facebook: targetHandle ? `https://www.facebook.com/${targetHandle}` : null,
-            maps: lead.cid ? `https://www.google.com/maps?cid=${lead.cid}` : (lead.title ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.title + ' ' + (lead.address || ''))}` : null),
-            website: lead.website || null,
-            ai_summary: null
-        };
-    }
+    // Ambil data yang nyata dan terverifikasi
+    const phone = lead.phoneNumber || lead.phone;
+    const phoneWa = phone && phone !== '-' ? `https://wa.me/${phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}` : null;
+    const mapsLink = lead.cid ? `https://www.google.com/maps?cid=${lead.cid}` : (lead.title ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.title + ' ' + (lead.address || ''))}` : null);
+    
+    const realIg = (sosmed && sosmed.instagram) || (lead.igUrl && lead.igUrl !== 'Tidak Ditemukan' && lead.igUrl.startsWith('http') ? lead.igUrl : null);
+    const realTt = sosmed && sosmed.tiktok ? sosmed.tiktok : null;
+    const realFb = sosmed && sosmed.facebook ? sosmed.facebook : null;
+    const realWa = (sosmed && sosmed.whatsapp) || phoneWa;
+    const realMap = (sosmed && sosmed.maps) || mapsLink;
 
     let badges = [];
 
-    // WhatsApp: chat langsung
-    if (sosmed.whatsapp) {
-        badges.push(`<a href="${sosmed.whatsapp}" target="_blank" rel="noopener noreferrer" title="WhatsApp: Chat Langsung" class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-whatsapp-fill"></i></a>`);
+    // WhatsApp: chat langsung (jika nomor HP tersedia)
+    if (realWa) {
+        badges.push(`<a href="${realWa}" target="_blank" rel="noopener noreferrer" title="WhatsApp: Chat Langsung" class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-whatsapp-fill"></i></a>`);
     }
 
-    // Instagram: profil akun langsung
-    if (sosmed.instagram) {
-        badges.push(`<a href="${sosmed.instagram}" target="_blank" rel="noopener noreferrer" title="Instagram: Buka Profil Akun" class="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-instagram-fill"></i></a>`);
+    // Instagram: profil akun langsung (hanya jika benar-benar terdeteksi)
+    if (realIg) {
+        badges.push(`<a href="${realIg}" target="_blank" rel="noopener noreferrer" title="Instagram: Buka Profil Akun" class="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-instagram-fill"></i></a>`);
     }
 
-    // TikTok: profil akun langsung
-    if (sosmed.tiktok) {
-        badges.push(`<a href="${sosmed.tiktok}" target="_blank" rel="noopener noreferrer" title="TikTok: Buka Profil Akun" class="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-tiktok-fill"></i></a>`);
+    // TikTok: profil akun langsung (hanya jika benar-benar terdeteksi)
+    if (realTt) {
+        badges.push(`<a href="${realTt}" target="_blank" rel="noopener noreferrer" title="TikTok: Buka Profil Akun" class="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-tiktok-fill"></i></a>`);
     }
 
-    // Facebook: profil/halaman langsung
-    if (sosmed.facebook) {
-        badges.push(`<a href="${sosmed.facebook}" target="_blank" rel="noopener noreferrer" title="Facebook: Buka Halaman Profil" class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-facebook-fill"></i></a>`);
+    // Facebook: profil/halaman langsung (hanya jika benar-benar terdeteksi)
+    if (realFb) {
+        badges.push(`<a href="${realFb}" target="_blank" rel="noopener noreferrer" title="Facebook: Buka Halaman Profil" class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-facebook-fill"></i></a>`);
     }
 
     // Google Maps: lokasi langsung
-    if (sosmed.maps) {
-        badges.push(`<a href="${sosmed.maps}" target="_blank" rel="noopener noreferrer" title="Google Maps: Lihat Lokasi" class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-map-pin-2-fill"></i></a>`);
+    if (realMap) {
+        badges.push(`<a href="${realMap}" target="_blank" rel="noopener noreferrer" title="Google Maps: Lihat Lokasi" class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs hover:scale-115 transition-transform shrink-0 shadow-2xs"><i class="ri-map-pin-2-fill"></i></a>`);
     }
 
-    if (badges.length === 0) {
-        return `<button onclick="detectSosmedForLeadByCid('${lead.cid}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 flex items-center gap-1 transition-all shadow-2xs whitespace-nowrap"><i class="ri-sparkling-2-fill text-amber-500"></i> Scan AI</button>`;
-    }
+    // Jika belum ada sosmed yang terdeteksi (belum di-scan AI)
+    const hasSocialProfile = realIg || realTt || realFb;
+    const scanPrompt = !sosmed && !hasSocialProfile ? `
+        <button onclick="detectSosmedForLeadByCid('${lead.cid}')" title="Pindai Akun Sosmed dengan AI Intelligence" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 flex items-center gap-1 transition-all shadow-2xs whitespace-nowrap shrink-0">
+            <i class="ri-sparkling-2-fill text-amber-500"></i> Scan AI
+        </button>
+    ` : '';
 
     return `
         <div class="flex items-center gap-1.5 flex-nowrap whitespace-nowrap min-w-max py-0.5">
             ${badges.join('')}
+            ${scanPrompt}
             <button onclick="openSosmedModalByCid('${lead.cid}')" class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center text-xs transition-colors shrink-0 shadow-2xs" title="Lihat Ringkasan & Detail Hub Sosmed">
                 <i class="ri-links-line"></i>
             </button>
@@ -810,9 +799,9 @@ function renderTable() {
         const initial = name.charAt(0).toUpperCase();
         const trueIndex = startIndex + idx;
 
-        let webDisplay = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200">Belum Ada</span>`;
+        let webDisplay = `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200 whitespace-nowrap inline-flex items-center gap-1"><i class="ri-close-circle-line"></i> Belum Ada</span>`;
         if (lead.website) {
-            webDisplay = `<a href="${lead.website}" target="_blank" class="text-blue-500 hover:underline flex items-center gap-1 text-xs"><i class="ri-global-line"></i> Ada</a>`;
+            webDisplay = `<a href="${lead.website}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 whitespace-nowrap inline-flex items-center gap-1 transition-colors"><i class="ri-global-line"></i> Ada</a>`;
         }
 
         tr.innerHTML = `

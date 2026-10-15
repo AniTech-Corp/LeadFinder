@@ -89,6 +89,87 @@ export interface SocialMediaDetectionResult {
   ai_summary: string;
 }
 
+function formatInstagramUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = url.match(/instagram\.com\/([A-Za-z0-9_.]+)/i);
+  if (m && m[1] && !['explore', 'p', 'reel', 'stories', 'tv', 'tags', 'dir', 'accounts', 'about'].includes(m[1].toLowerCase())) {
+    return `https://www.instagram.com/${m[1]}/`;
+  }
+  return null;
+}
+
+function formatTikTokUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = url.match(/tiktok\.com\/@?([A-Za-z0-9_.]+)/i);
+  if (m && m[1] && !['search', 'tag', 'music', 'live', 'discover'].includes(m[1].toLowerCase())) {
+    return `https://www.tiktok.com/@${m[1].replace(/^@/, '')}`;
+  }
+  return null;
+}
+
+function formatFacebookUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes('facebook.com/profile.php')) {
+    const idMatch = url.match(/id=([0-9]+)/);
+    if (idMatch) return `https://www.facebook.com/profile.php?id=${idMatch[1]}`;
+  }
+  const m = url.match(/(?:facebook\.com|fb\.com)\/([A-Za-z0-9_.-]+)/i);
+  if (m && m[1] && !['search', 'share', 'sharer', 'login', 'groups', 'events', 'watch', 'pages', 'hashtag', 'profile.php'].includes(m[1].toLowerCase())) {
+    return `https://www.facebook.com/${m[1]}`;
+  }
+  return null;
+}
+
+async function crawlPageForSocials(url: string): Promise<{
+  instagram: string | null;
+  tiktok: string | null;
+  facebook: string | null;
+  whatsapp: string | null;
+}> {
+  const found: {
+    instagram: string | null;
+    tiktok: string | null;
+    facebook: string | null;
+    whatsapp: string | null;
+  } = { instagram: null, tiktok: null, facebook: null, whatsapp: null };
+  try {
+    let target = url.trim();
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      target = 'https://' + target;
+    }
+    const resp = await axios.get(target, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      maxRedirects: 4,
+    });
+    if (resp.data && typeof resp.data === 'string') {
+      const cheerio = await import('cheerio');
+      const $ = cheerio.load(resp.data);
+      $('a[href]').each((_, el) => {
+        const href = $(el).attr('href') || '';
+        if (!found.instagram && href.includes('instagram.com/')) {
+          found.instagram = formatInstagramUrl(href);
+        }
+        if (!found.tiktok && href.includes('tiktok.com/')) {
+          found.tiktok = formatTikTokUrl(href);
+        }
+        if (!found.facebook && (href.includes('facebook.com/') || href.includes('fb.com/'))) {
+          found.facebook = formatFacebookUrl(href);
+        }
+        if (!found.whatsapp && (href.includes('wa.me/') || href.includes('api.whatsapp.com/'))) {
+          found.whatsapp = href;
+        }
+      });
+    }
+  } catch {
+    /* abaikan crawl error */
+  }
+  return found;
+}
+
 export async function detectBusinessSocialMedia(business: {
   title: string;
   address?: string;
@@ -122,17 +203,17 @@ export async function detectBusinessSocialMedia(business: {
     }
   }
 
-  // 2. Analisis Link Website / Bio Link (Linktree, Desty, Instagram, TikTok, Facebook)
+  // 2. Analisis Link Website / Bio Link (Instagram, TikTok, Facebook, Linktree, dll)
   if (business.website) {
     const webLower = business.website.toLowerCase();
     if (webLower.includes('instagram.com/')) {
-      result.instagram = business.website;
+      result.instagram = formatInstagramUrl(business.website);
       result.website = null;
     } else if (webLower.includes('tiktok.com/')) {
-      result.tiktok = business.website;
+      result.tiktok = formatTikTokUrl(business.website);
       result.website = null;
-    } else if (webLower.includes('facebook.com/')) {
-      result.facebook = business.website;
+    } else if (webLower.includes('facebook.com/') || webLower.includes('fb.com/')) {
+      result.facebook = formatFacebookUrl(business.website);
       result.website = null;
     } else if (webLower.includes('wa.me/') || webLower.includes('api.whatsapp.com/')) {
       result.whatsapp = business.website;
@@ -141,62 +222,51 @@ export async function detectBusinessSocialMedia(business: {
       webLower.includes('linktr.ee') ||
       webLower.includes('desty.page') ||
       webLower.includes('bio.link') ||
-      webLower.includes('biolinky.co')
+      webLower.includes('biolinky.co') ||
+      webLower.includes('campsite.bio')
     ) {
-      // Crawl bio link page untuk mengekstrak link sosmed
-      try {
-        let bioUrl = business.website.trim();
-        if (!bioUrl.startsWith('http://') && !bioUrl.startsWith('https://')) {
-          bioUrl = 'https://' + bioUrl;
-        }
-        const resp = await axios.get(bioUrl, {
-          timeout: 4000,
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
-        });
-        if (resp.data && typeof resp.data === 'string') {
-          const cheerio = await import('cheerio');
-          const $ = cheerio.load(resp.data);
-          $('a[href]').each((_, el) => {
-            const h = $(el).attr('href') || '';
-            if (h.includes('instagram.com') && !result.instagram) result.instagram = h;
-            if (h.includes('tiktok.com') && !result.tiktok) result.tiktok = h;
-            if (h.includes('facebook.com') && !result.facebook) result.facebook = h;
-            if ((h.includes('wa.me') || h.includes('whatsapp.com')) && !result.whatsapp) result.whatsapp = h;
-          });
-        }
-      } catch {
-        /* abaikan crawl error */
-      }
+      // Bio link -> crawl untuk ekstrak sosmed
+      const bioSocials = await crawlPageForSocials(business.website);
+      if (bioSocials.instagram) result.instagram = bioSocials.instagram;
+      if (bioSocials.tiktok) result.tiktok = bioSocials.tiktok;
+      if (bioSocials.facebook) result.facebook = bioSocials.facebook;
+      if (bioSocials.whatsapp && !result.whatsapp) result.whatsapp = bioSocials.whatsapp;
+      result.website = null; // Bio link bukan website mandiri resmi
+    } else {
+      // Website mandiri resmi -> crawl homepage untuk mengekstrak sosmed resmi perusahaan
+      const webSocials = await crawlPageForSocials(business.website);
+      if (webSocials.instagram) result.instagram = webSocials.instagram;
+      if (webSocials.tiktok) result.tiktok = webSocials.tiktok;
+      if (webSocials.facebook) result.facebook = webSocials.facebook;
+      if (webSocials.whatsapp && !result.whatsapp) result.whatsapp = webSocials.whatsapp;
     }
   }
 
-  // 3. AI Social Media Detective (APMix AI / Claude Sonnet)
+  // 3. AI Social Media Intelligence (APMix AI / Claude Sonnet) jika belum lengkap
   const apiKey = process.env.AI_API_KEY || process.env.OPENROUTER_API_KEY;
   const baseUrl = process.env.AI_BASE_URL || (process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.apmix.ai/v1');
   const model = process.env.AI_MODEL || 'claude-sonnet-4-6-free';
 
-  if (apiKey && !apiKey.startsWith('your_')) {
+  if (apiKey && !apiKey.startsWith('your_') && (!result.instagram || !result.tiktok || !result.facebook)) {
     try {
       const prompt = `Anda adalah AI Intelligence Sosial Media UMKM Indonesia. Analisis data bisnis ini:
 Nama Usaha: "${cleanTitle}"
 Alamat/Area: "${cleanAddress}"
 Kategori: "${business.category || 'UMKM'}"
 Telepon: "${business.phone || '-'}"
-Website/Link: "${business.website || '-'}"
+Website: "${result.website || '-'}"
+Instagram Terdeteksi: "${result.instagram || '-'}"
 
 Tugas:
-1. Temukan atau simpulkan kemungkinan profil media sosial bisnis ini di Indonesia (Instagram handle/link, TikTok handle/link, Facebook link).
-2. Jika ada nomor HP, pastikan WhatsApp link terisi.
-3. Berikan 1 kalimat kesimpulan 'ai_summary' tentang kehadiran online bisnis ini dan peluang penawaran website.
+1. Jika Anda mengetahui akun resmi Instagram, TikTok, atau Facebook bisnis ini di Indonesia, berikan URL profil langsungnya.
+2. PENTING: DILARANG MENEBAK ATAU MENGARANG AKUN PALSU. Jika tidak yakin atau tidak ditemukan akun resmi, kembalikan null!
+3. Berikan 1 kalimat objektif 'ai_summary' mengenai status kehadiran digital bisnis ini dan peluang penawaran website.
 
-Kembalikan HANYA format JSON valid tanpa backticks markdown:
+Kembalikan HANYA format JSON valid tanpa markdown backticks:
 {
-  "instagram": "link instagram atau null",
-  "tiktok": "link tiktok atau null",
-  "facebook": "link facebook atau null",
+  "instagram": ${result.instagram ? `"${result.instagram}"` : '"link atau null"'},
+  "tiktok": ${result.tiktok ? `"${result.tiktok}"` : '"link atau null"'},
+  "facebook": ${result.facebook ? `"${result.facebook}"` : '"link atau null"'},
   "whatsapp": "${result.whatsapp || 'null'}",
   "maps": "${result.maps}",
   "ai_summary": "1 kalimat analisa bisnis..."
@@ -208,7 +278,7 @@ Kembalikan HANYA format JSON valid tanpa backticks markdown:
         {
           model,
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
+          temperature: 0.1,
         },
         {
           headers: {
@@ -225,11 +295,21 @@ Kembalikan HANYA format JSON valid tanpa backticks markdown:
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.instagram && !result.instagram) result.instagram = parsed.instagram;
-          if (parsed.tiktok && !result.tiktok) result.tiktok = parsed.tiktok;
-          if (parsed.facebook && !result.facebook) result.facebook = parsed.facebook;
-          if (parsed.whatsapp && !result.whatsapp) result.whatsapp = parsed.whatsapp;
-          if (parsed.ai_summary) result.ai_summary = parsed.ai_summary;
+          if (parsed.instagram && parsed.instagram !== 'null' && !result.instagram) {
+            result.instagram = formatInstagramUrl(parsed.instagram);
+          }
+          if (parsed.tiktok && parsed.tiktok !== 'null' && !result.tiktok) {
+            result.tiktok = formatTikTokUrl(parsed.tiktok);
+          }
+          if (parsed.facebook && parsed.facebook !== 'null' && !result.facebook) {
+            result.facebook = formatFacebookUrl(parsed.facebook);
+          }
+          if (parsed.whatsapp && parsed.whatsapp !== 'null' && !result.whatsapp) {
+            result.whatsapp = parsed.whatsapp;
+          }
+          if (parsed.ai_summary) {
+            result.ai_summary = parsed.ai_summary;
+          }
         }
       }
     } catch (err: any) {
@@ -237,51 +317,19 @@ Kembalikan HANYA format JSON valid tanpa backticks markdown:
     }
   }
 
-  // 4. Default Fallback & Sanitization - Selalu arahkan langsung ke profil akun
+  // 4. Sanitasi Akhir & Ringkasan Digital Presence Objektif
+  result.instagram = formatInstagramUrl(result.instagram);
+  result.tiktok = formatTikTokUrl(result.tiktok);
+  result.facebook = formatFacebookUrl(result.facebook);
+
   if (!result.ai_summary) {
-    result.ai_summary = `Prospek aktif di Google Maps (${business.category || 'UMKM'}), belum memiliki website profil resmi.`;
-  }
-
-  // Handle bersih berbasis nama bisnis (misal: "kopi.kenangan.juanda")
-  const cleanHandle = cleanTitle
-    .replace(/[^a-zA-Z0-9\s]/g, '')
-    .trim()
-    .replace(/\s+/g, '.')
-    .toLowerCase();
-
-  const simpleHandle = cleanTitle
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase();
-
-  const targetHandle = cleanHandle || simpleHandle;
-
-  // Instagram: pastikan link bersih langsung ke profil (@username)
-  if (!result.instagram) {
-    result.instagram = targetHandle ? `https://www.instagram.com/${targetHandle}/` : null;
-  } else {
-    const igMatch = result.instagram.match(/instagram\.com\/([A-Za-z0-9_.]+)/);
-    if (igMatch && igMatch[1] && !['explore', 'p', 'reel', 'stories', 'tv', 'tags', 'dir'].includes(igMatch[1].toLowerCase())) {
-      result.instagram = `https://www.instagram.com/${igMatch[1]}/`;
-    }
-  }
-
-  // TikTok: pastikan langsung ke akun profil (@username)
-  if (!result.tiktok) {
-    result.tiktok = targetHandle ? `https://www.tiktok.com/@${targetHandle}` : null;
-  } else {
-    const ttMatch = result.tiktok.match(/tiktok\.com\/@?([A-Za-z0-9_.]+)/);
-    if (ttMatch && ttMatch[1] && !['search', 'tag', 'music', 'live'].includes(ttMatch[1].toLowerCase())) {
-      result.tiktok = `https://www.tiktok.com/@${ttMatch[1].replace(/^@/, '')}`;
-    }
-  }
-
-  // Facebook: pastikan langsung ke halaman/profil bisnis
-  if (!result.facebook) {
-    result.facebook = targetHandle ? `https://www.facebook.com/${targetHandle}` : null;
-  } else {
-    const fbMatch = result.facebook.match(/facebook\.com\/([A-Za-z0-9_.-]+)/);
-    if (fbMatch && fbMatch[1] && !['search', 'share', 'sharer', 'login'].includes(fbMatch[1].toLowerCase())) {
-      result.facebook = `https://www.facebook.com/${fbMatch[1]}`;
+    if (result.website) {
+      result.ai_summary = `Memiliki website resmi (${result.website})${result.instagram ? ' dan akun Instagram terverifikasi' : ''}.`;
+    } else if (result.instagram || result.tiktok || result.facebook) {
+      const activeSosmed = [result.instagram ? 'Instagram' : '', result.tiktok ? 'TikTok' : '', result.facebook ? 'Facebook' : ''].filter(Boolean).join(', ');
+      result.ai_summary = `Aktif di media sosial (${activeSosmed}), belum memiliki website profil resmi perusahaan (Peluang Prospek Tinggi).`;
+    } else {
+      result.ai_summary = `Terdaftar di Google Maps (${business.category || 'UMKM'}), belum memiliki website maupun media sosial resmi terdeteksi.`;
     }
   }
 

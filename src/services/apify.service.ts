@@ -14,6 +14,7 @@ export interface ScrapedPlace {
   searchCategory: string;
   mapsUrl: string;
   igUrl?: string;
+  sosmed_data?: any;
   score?: number;
   priority?: 'Tinggi' | 'Menengah' | 'Rendah';
   skala_bisnis?: 'Kecil' | 'Menengah' | 'Besar';
@@ -84,11 +85,66 @@ export async function scrapeGooglePlacesViaApify(
 
     const address = item.address || item.formattedAddress || item.street || '';
     let phone = item.phone || item.phoneNumber || item.phoneUnformatted || '';
-    let website = item.website || item.websiteUrl || null;
+    let rawWebsite = item.website || item.websiteUrl || null;
 
-    // Bersihkan jika website malah link google maps
-    if (website && (website.includes('google.com/maps') || website.includes('goo.gl'))) {
-      website = null;
+    let website: string | null = rawWebsite;
+    let igUrl: string | null = null;
+    let tiktokUrl: string | null = null;
+    let facebookUrl: string | null = null;
+    let waUrl: string | null = null;
+
+    if (phone) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      if (cleanPhone.startsWith('628') || cleanPhone.startsWith('08')) {
+        const waNum = cleanPhone.startsWith('08') ? '62' + cleanPhone.slice(1) : cleanPhone;
+        waUrl = `https://wa.me/${waNum}`;
+      }
+    }
+
+    if (website) {
+      const webLower = website.toLowerCase();
+      if (webLower.includes('google.com/maps') || webLower.includes('goo.gl')) {
+        website = null;
+      } else if (webLower.includes('instagram.com/')) {
+        const igMatch = website.match(/instagram\.com\/([A-Za-z0-9_.]+)/i);
+        if (igMatch && igMatch[1] && !['explore', 'p', 'reel', 'stories', 'tv', 'tags', 'dir'].includes(igMatch[1].toLowerCase())) {
+          igUrl = `https://www.instagram.com/${igMatch[1]}/`;
+        } else {
+          igUrl = website;
+        }
+        website = null; // Bukan website perusahaan, ini akun Instagram!
+      } else if (webLower.includes('tiktok.com/')) {
+        const ttMatch = website.match(/tiktok\.com\/@?([A-Za-z0-9_.]+)/i);
+        if (ttMatch && ttMatch[1] && !['search', 'tag', 'music', 'live'].includes(ttMatch[1].toLowerCase())) {
+          tiktokUrl = `https://www.tiktok.com/@${ttMatch[1].replace(/^@/, '')}`;
+        } else {
+          tiktokUrl = website;
+        }
+        website = null; // Bukan website perusahaan, ini akun TikTok!
+      } else if (webLower.includes('facebook.com/') || webLower.includes('fb.com/')) {
+        const fbMatch = website.match(/(?:facebook\.com|fb\.com)\/([A-Za-z0-9_.-]+)/i);
+        if (fbMatch && fbMatch[1] && !['search', 'share', 'sharer', 'login'].includes(fbMatch[1].toLowerCase())) {
+          facebookUrl = `https://www.facebook.com/${fbMatch[1]}`;
+        } else {
+          facebookUrl = website;
+        }
+        website = null; // Akun Facebook!
+      } else if (webLower.includes('wa.me/') || webLower.includes('api.whatsapp.com/')) {
+        waUrl = website;
+        website = null; // Link WhatsApp!
+      } else if (
+        webLower.includes('linktr.ee') ||
+        webLower.includes('desty.page') ||
+        webLower.includes('bio.link') ||
+        webLower.includes('biolinky.co')
+      ) {
+        website = null; // Bio link bukan website mandiri resmi
+      }
+    }
+
+    // Jika item Apify sendiri mendeteksi instagram
+    if (item.instagram && !igUrl) {
+      igUrl = item.instagram.startsWith('http') ? item.instagram : `https://www.instagram.com/${item.instagram}/`;
     }
 
     const rating = typeof item.totalScore === 'number' ? item.totalScore : (parseFloat(item.rating) || 0);
@@ -96,26 +152,32 @@ export async function scrapeGooglePlacesViaApify(
     
     // Cid unik
     const cid = item.cid || item.placeId || Buffer.from(`${title}-${address}`).toString('hex').slice(0, 20);
-    const mapsUrl = item.url || (item.cid ? `https://www.google.com/maps?cid=${item.cid}` : '#');
-
-    // Instagram jika dideteksi langsung oleh Apify
-    let igUrl = 'Tidak Ditemukan';
-    if (item.instagram) {
-      igUrl = item.instagram.startsWith('http') ? item.instagram : `https://instagram.com/${item.instagram}`;
-    }
+    const mapsUrl = item.url || (item.cid ? `https://www.google.com/maps?cid=${item.cid}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(title + ' ' + address)}`);
 
     // Hitung Skor & Prioritas Awal
-    let score = 40;
+    let score = 35;
     if (phone) score += 20;
-    if (rating >= 4.0) score += 20;
+    if (rating >= 4.0) score += 15;
     if (reviewsCount >= 30) score += 10;
-    if (igUrl !== 'Tidak Ditemukan') score += 10;
-    if (!website) score += 10; // Prioritas tinggi jika belum ada website
+    if (igUrl || tiktokUrl) score += 10;
+    if (!website) score += 20; // Prioritas tinggi jika belum ada website resmi perusahaan!
 
     const finalScore = Math.min(score, 100);
     let priority: 'Tinggi' | 'Menengah' | 'Rendah' = 'Rendah';
     if (finalScore >= 70) priority = 'Tinggi';
     else if (finalScore >= 50) priority = 'Menengah';
+
+    const initialSosmed = {
+      instagram: igUrl,
+      tiktok: tiktokUrl,
+      facebook: facebookUrl,
+      whatsapp: waUrl,
+      maps: mapsUrl,
+      website: website,
+      ai_summary: igUrl
+        ? `Memiliki akun Instagram resmi (${igUrl}) di profil Google Maps, belum memiliki website perusahaan.`
+        : (website ? `Memiliki website resmi (${website}).` : `Belum memiliki website resmi maupun akun sosmed terdata di Google Maps.`)
+    };
 
     results.push({
       cid,
@@ -127,7 +189,8 @@ export async function scrapeGooglePlacesViaApify(
       user_ratings_total: reviewsCount,
       searchCategory: item.categoryName || category,
       mapsUrl,
-      igUrl,
+      igUrl: igUrl || 'Tidak Ditemukan',
+      sosmed_data: initialSosmed,
       score: finalScore,
       priority,
       skala_bisnis: 'Kecil',
