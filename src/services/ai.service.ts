@@ -237,21 +237,52 @@ Kembalikan HANYA format JSON valid tanpa backticks markdown:
     }
   }
 
-  // 4. Default Fallback & Sanitization
+  // 4. Default Fallback & Sanitization - Selalu arahkan langsung ke profil akun
   if (!result.ai_summary) {
     result.ai_summary = `Prospek aktif di Google Maps (${business.category || 'UMKM'}), belum memiliki website profil resmi.`;
   }
 
-  // Jika belum ditemukan handle pasti, sediakan link pencarian langsung ke platform
-  const qSlug = encodeURIComponent(cleanTitle);
+  // Handle bersih berbasis nama bisnis (misal: "kopi.kenangan.juanda")
+  const cleanHandle = cleanTitle
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '.')
+    .toLowerCase();
+
+  const simpleHandle = cleanTitle
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase();
+
+  const targetHandle = cleanHandle || simpleHandle;
+
+  // Instagram: pastikan link bersih langsung ke profil (@username)
   if (!result.instagram) {
-    result.instagram = `https://www.instagram.com/explore/tags/${encodeURIComponent(cleanTitle.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())}/`;
+    result.instagram = targetHandle ? `https://www.instagram.com/${targetHandle}/` : null;
+  } else {
+    const igMatch = result.instagram.match(/instagram\.com\/([A-Za-z0-9_.]+)/);
+    if (igMatch && igMatch[1] && !['explore', 'p', 'reel', 'stories', 'tv', 'tags', 'dir'].includes(igMatch[1].toLowerCase())) {
+      result.instagram = `https://www.instagram.com/${igMatch[1]}/`;
+    }
   }
+
+  // TikTok: pastikan langsung ke akun profil (@username)
   if (!result.tiktok) {
-    result.tiktok = `https://www.tiktok.com/search?q=${qSlug}`;
+    result.tiktok = targetHandle ? `https://www.tiktok.com/@${targetHandle}` : null;
+  } else {
+    const ttMatch = result.tiktok.match(/tiktok\.com\/@?([A-Za-z0-9_.]+)/);
+    if (ttMatch && ttMatch[1] && !['search', 'tag', 'music', 'live'].includes(ttMatch[1].toLowerCase())) {
+      result.tiktok = `https://www.tiktok.com/@${ttMatch[1].replace(/^@/, '')}`;
+    }
   }
+
+  // Facebook: pastikan langsung ke halaman/profil bisnis
   if (!result.facebook) {
-    result.facebook = `https://www.facebook.com/search/top?q=${qSlug}`;
+    result.facebook = targetHandle ? `https://www.facebook.com/${targetHandle}` : null;
+  } else {
+    const fbMatch = result.facebook.match(/facebook\.com\/([A-Za-z0-9_.-]+)/);
+    if (fbMatch && fbMatch[1] && !['search', 'share', 'sharer', 'login'].includes(fbMatch[1].toLowerCase())) {
+      result.facebook = `https://www.facebook.com/${fbMatch[1]}`;
+    }
   }
 
   return result;
