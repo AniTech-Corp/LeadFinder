@@ -104,8 +104,9 @@ app.all('/backend/crm_api.php', (req: Request, res: Response, next) => {
     req.url = '/status';
     settingsRoutes(req, res, next);
   } else if (action === 'kategori') {
-    // Master kategori industri
-    req.url = '/kategori';
+    // Master kategori industri (mendukung GET, POST, PUT, DELETE)
+    const catId = req.query.id ? `/${req.query.id}` : '';
+    req.url = `/kategori${catId}`;
     settingsRoutes(req, res, next);
   } else {
     res.status(400).json({ error: 'Invalid action' });

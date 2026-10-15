@@ -860,12 +860,46 @@ const DASH_CAT_COLORS = [
     'bg-yellow-100 text-yellow-600', 'bg-slate-200 text-slate-600'
 ];
 
+const POPULAR_CATEGORY_ICONS = [
+    { icon: 'ri-restaurant-line', label: 'Kuliner/Resto' },
+    { icon: 'ri-cup-line', label: 'Kafe/Kopi' },
+    { icon: 'ri-bread-line', label: 'Bakery/Kue' },
+    { icon: 'ri-shopping-bag-3-line', label: 'Fashion/Baju' },
+    { icon: 'ri-sparkling-fill', label: 'Kecantikan/Salon' },
+    { icon: 'ri-scissors-line', label: 'Barbershop' },
+    { icon: 'ri-t-shirt-line', label: 'Laundry' },
+    { icon: 'ri-store-3-line', label: 'Toko Retail' },
+    { icon: 'ri-plant-line', label: 'Florist/Bunga' },
+    { icon: 'ri-printer-line', label: 'Percetakan' },
+    { icon: 'ri-camera-3-line', label: 'Photobox/Foto' },
+    { icon: 'ri-tools-line', label: 'Jasa/Service' },
+    { icon: 'ri-car-line', label: 'Bengkel/Otomotif' },
+    { icon: 'ri-medicine-bottle-line', label: 'Apotek/Klinik' },
+    { icon: 'ri-hotel-line', label: 'Hotel/Kost' },
+    { icon: 'ri-fitness-line', label: 'Gym/Fitness' },
+    { icon: 'ri-computer-line', label: 'Komputer/IT' },
+    { icon: 'ri-book-read-line', label: 'Pendidikan' },
+    { icon: 'ri-home-smile-line', label: 'Properti' },
+    { icon: 'ri-gift-line', label: 'Souvenir/Gift' },
+    { icon: 'ri-more-fill', label: 'Lainnya' }
+];
+
 function dashCategoryObjects() {
     const kat = (window.APP_SETTINGS && window.APP_SETTINGS.kategori) || null;
     if (Array.isArray(kat) && kat.length) {
-        return kat.map(k => ({ nama: k.nama, ikon: k.ikon || 'ri-store-2-line' }));
+        return kat.map(k => ({
+            id: k.id || 0,
+            nama: k.nama,
+            ikon: k.ikon || 'ri-store-2-line',
+            urutan: k.urutan || 0
+        }));
     }
-    return DASH_INDUSTRIES_FALLBACK.slice();
+    return DASH_INDUSTRIES_FALLBACK.map((k, idx) => ({
+        id: idx + 1,
+        nama: k.nama,
+        ikon: k.ikon || 'ri-store-2-line',
+        urutan: idx + 1
+    }));
 }
 
 function dashCategories() {
@@ -895,21 +929,255 @@ function populateBrandDropdown() {
         .join('');
 }
 
-// Render grid kategori pencarian secara dinamis dari master backend.
+// Render grid kategori pencarian secara dinamis dan interaktif dari master backend.
 function renderCategoryGrid() {
     const grid = document.getElementById('categoryGrid');
     if (!grid) return;
     const cats = dashCategoryObjects();
-    let html = cats.map((c, i) => `
-        <label class="cat-checkbox${i === 0 ? ' active' : ''} cursor-pointer border border-slate-200 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 flex items-center gap-2 hover:bg-slate-50 transition-colors">
-            <input type="radio" name="kategori" value="${c.nama}"${i === 0 ? ' checked' : ''}> <i class="${c.ikon}"></i> ${c.nama}
-            <i class="ri-check-line check-icon ml-1"></i>
-        </label>`).join('');
+    const checkedRadio = document.querySelector('input[name="kategori"]:checked');
+    const selectedVal = checkedRadio ? checkedRadio.value : (cats[0] ? cats[0].nama : '');
+
+    let html = cats.map((c, i) => {
+        const isChecked = c.nama === selectedVal || (!checkedRadio && i === 0);
+        const escName = _uiEscapeHtml(c.nama);
+        const escIcon = _uiEscapeHtml(c.ikon || 'ri-store-2-line');
+        const catId = c.id || 0;
+
+        return `
+        <div class="group inline-flex items-center gap-1 p-0.5 rounded-xl border border-slate-200 bg-white hover:border-blue-300 transition-all shadow-2xs">
+            <label class="cat-checkbox ${isChecked ? 'active' : ''} cursor-pointer rounded-lg px-3 py-1.5 text-xs sm:text-[13px] font-semibold text-slate-700 flex items-center gap-2 hover:bg-slate-50 transition-colors select-none">
+                <input type="radio" name="kategori" value="${escName}" ${isChecked ? 'checked' : ''}>
+                <i class="${escIcon} text-slate-500"></i>
+                <span>${escName}</span>
+                <i class="ri-check-line check-icon ml-0.5 text-primary"></i>
+            </label>
+            <div class="flex items-center gap-0.5 pr-1 opacity-70 hover:opacity-100 transition-opacity">
+                <button type="button" onclick="event.stopPropagation(); event.preventDefault(); openCategoryEditModalById(${catId}, '${escName}', '${escIcon}')" title="Ubah Nama & Ikon Kategori" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    <i class="ri-pencil-line text-xs"></i>
+                </button>
+                <button type="button" onclick="event.stopPropagation(); event.preventDefault(); deleteCategoryById(${catId}, '${escName}')" title="Hapus Kategori" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors">
+                    <i class="ri-delete-bin-line text-xs"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+
     html += `
-        <button class="px-4 py-2 border border-slate-200 border-dashed rounded-lg text-[13px] font-semibold text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-2">
-            <i class="ri-add-line"></i> Tambah Kategori
+        <button type="button" onclick="openCategoryAddModal()" class="px-3.5 py-2 border border-dashed border-slate-300 hover:border-blue-500 rounded-xl text-xs sm:text-[13px] font-semibold text-slate-600 hover:text-primary hover:bg-blue-50/60 transition-all flex items-center gap-1.5 shadow-2xs">
+            <i class="ri-add-line text-sm text-primary"></i> Tambah Kategori
+        </button>
+        <button type="button" onclick="openCategoryManageModal()" title="Kelola Kategori" class="p-2 border border-slate-200 hover:border-slate-300 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors flex items-center justify-center shadow-2xs">
+            <i class="ri-settings-4-line text-sm"></i>
         </button>`;
+
     grid.innerHTML = html;
+}
+
+// ===== CATEGORY MANAGEMENT (MODAL, FORM, CRUD) =====
+function openCategoryAddModal() {
+    const modal = document.getElementById('categoryModal');
+    if (!modal) return;
+    document.getElementById('catModalTitle').innerText = 'Tambah Kategori Baru';
+    document.getElementById('catModalHeaderIcon').className = 'ri-folder-add-line';
+    document.getElementById('catModalIconWrap').className = 'w-8 h-8 rounded-lg bg-blue-50 text-primary flex items-center justify-center text-lg';
+    document.getElementById('catFormId').value = '';
+    document.getElementById('catFormNama').value = '';
+    document.getElementById('catFormIkon').value = 'ri-store-2-line';
+    document.getElementById('catFormSubmitText').innerText = 'Simpan Kategori';
+    updateCategoryIconPreview('ri-store-2-line');
+    renderCategoryIconPresets();
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('catFormNama')?.focus(), 50);
+}
+
+function openCategoryEditModalById(id, nama, ikon) {
+    const modal = document.getElementById('categoryModal');
+    if (!modal) return;
+    document.getElementById('catModalTitle').innerText = 'Ubah Kategori UMKM';
+    document.getElementById('catModalHeaderIcon').className = 'ri-edit-line';
+    document.getElementById('catModalIconWrap').className = 'w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-lg';
+    document.getElementById('catFormId').value = id || '';
+    document.getElementById('catFormNama').value = nama || '';
+    document.getElementById('catFormIkon').value = ikon || 'ri-store-2-line';
+    document.getElementById('catFormSubmitText').innerText = 'Perbarui Kategori';
+    updateCategoryIconPreview(ikon || 'ri-store-2-line');
+    renderCategoryIconPresets();
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('catFormNama')?.focus(), 50);
+}
+
+function closeCategoryModal() {
+    const modal = document.getElementById('categoryModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openCategoryManageModal() {
+    const modal = document.getElementById('categoryManageModal');
+    if (!modal) return;
+    renderCategoryManageList();
+    modal.style.display = 'flex';
+}
+
+function closeCategoryManageModal() {
+    const modal = document.getElementById('categoryManageModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function updateCategoryIconPreview(val) {
+    const el = document.getElementById('catIconPreview');
+    if (el) {
+        const clean = String(val || 'ri-store-2-line').trim();
+        el.innerHTML = `<i class="${_uiEscapeHtml(clean)}"></i>`;
+    }
+}
+
+function selectPresetIcon(iconClass) {
+    const input = document.getElementById('catFormIkon');
+    if (input) {
+        input.value = iconClass;
+        updateCategoryIconPreview(iconClass);
+    }
+}
+
+function renderCategoryIconPresets() {
+    const container = document.getElementById('catIconPresets');
+    if (!container) return;
+    container.innerHTML = POPULAR_CATEGORY_ICONS.map(p => `
+        <button type="button" onclick="selectPresetIcon('${p.icon}')" title="${p.label} (${p.icon})" class="w-8 h-8 rounded-lg border border-slate-200 hover:border-primary hover:bg-blue-50 text-slate-600 hover:text-primary flex items-center justify-center text-sm transition-all">
+            <i class="${p.icon}"></i>
+        </button>
+    `).join('');
+}
+
+function renderCategoryManageList() {
+    const container = document.getElementById('catManageList');
+    if (!container) return;
+    const cats = dashCategoryObjects();
+    if (cats.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center text-slate-400 text-sm font-medium">Belum ada kategori. Silakan tambahkan kategori baru.</div>`;
+        return;
+    }
+    container.innerHTML = cats.map((c, i) => {
+        const escName = _uiEscapeHtml(c.nama);
+        const escIcon = _uiEscapeHtml(c.ikon || 'ri-store-2-line');
+        const catId = c.id || 0;
+        return `
+        <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 hover:border-slate-300 bg-white hover:bg-slate-50/50 transition-all">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg shrink-0">
+                    <i class="${escIcon}"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="font-bold text-sm text-slate-800 truncate">${escName}</div>
+                    <div class="text-[11px] font-mono text-slate-400 truncate">${escIcon}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="openCategoryEditModalById(${catId}, '${escName}', '${escIcon}')" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 border border-slate-200 hover:border-blue-200">
+                    <i class="ri-pencil-line"></i> Edit
+                </button>
+                <button type="button" onclick="deleteCategoryById(${catId}, '${escName}')" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 border border-slate-200 hover:border-rose-200">
+                    <i class="ri-delete-bin-line"></i> Hapus
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function handleCategoryFormSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('catFormId').value;
+    const nama = document.getElementById('catFormNama').value.trim();
+    const ikon = document.getElementById('catFormIkon').value.trim() || 'ri-store-2-line';
+
+    if (!nama) {
+        uiToast('Nama kategori wajib diisi.', { type: 'warning' });
+        return;
+    }
+
+    const isEdit = !!id;
+    const url = isEdit ? `/api/settings/kategori/${id}` : '/api/settings/kategori';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const btn = document.getElementById('catFormSubmitBtn');
+    const submitText = document.getElementById('catFormSubmitText');
+    btn.disabled = true;
+    if (submitText) submitText.innerText = 'Menyimpan...';
+
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nama, ikon })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            closeCategoryModal();
+            uiToast(data.message || (isEdit ? 'Kategori berhasil diperbarui.' : 'Kategori berhasil ditambahkan.'), { type: 'success' });
+            await reloadCategories();
+            const manageModal = document.getElementById('categoryManageModal');
+            if (manageModal && manageModal.style.display === 'flex') {
+                renderCategoryManageList();
+            }
+        } else {
+            uiAlert(data.message || 'Gagal menyimpan kategori.', { type: 'error' });
+        }
+    } catch (err) {
+        uiAlert('Terjadi kesalahan jaringan: ' + err.message, { type: 'error' });
+    } finally {
+        btn.disabled = false;
+        if (submitText) submitText.innerText = isEdit ? 'Perbarui Kategori' : 'Simpan Kategori';
+    }
+}
+
+async function deleteCategoryById(id, nama) {
+    const confirmed = await uiConfirm(`Apakah Anda yakin ingin menghapus kategori "${nama}"?`, {
+        title: 'Hapus Kategori',
+        confirmText: 'Ya, Hapus',
+        cancelText: 'Batal',
+        type: 'warning'
+    });
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`/api/settings/kategori/${id}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            uiToast(data.message || `Kategori "${nama}" berhasil dihapus.`, { type: 'success' });
+            await reloadCategories();
+            const manageModal = document.getElementById('categoryManageModal');
+            if (manageModal && manageModal.style.display === 'flex') {
+                renderCategoryManageList();
+            }
+        } else {
+            uiAlert(data.message || 'Gagal menghapus kategori.', { type: 'error' });
+        }
+    } catch (err) {
+        uiAlert('Terjadi kesalahan jaringan: ' + err.message, { type: 'error' });
+    }
+}
+
+async function reloadCategories() {
+    try {
+        const res = await fetch('/api/settings/kategori', { cache: 'no-store' });
+        const data = await res.json();
+        if (data && data.status === 'success' && Array.isArray(data.kategori)) {
+            if (!window.APP_SETTINGS) window.APP_SETTINGS = {};
+            window.APP_SETTINGS.kategori = data.kategori;
+            try {
+                const cached = JSON.parse(localStorage.getItem('appSettingsCache') || '{}');
+                cached.kategori = data.kategori;
+                localStorage.setItem('appSettingsCache', JSON.stringify(cached));
+            } catch (e) {}
+
+            renderCategoryGrid();
+            if (typeof renderPengaturanDinamis === 'function') renderPengaturanDinamis();
+        }
+    } catch (e) {
+        console.error('Failed to reload categories:', e);
+    }
 }
 
 // Halaman Pengaturan: tampilkan status integrasi nyata (tanpa membocorkan token).
@@ -1004,12 +1272,22 @@ function renderPengaturanDinamis() {
     if (katBody) {
         const kat = Array.isArray(s.kategori) ? s.kategori : [];
         katBody.innerHTML = kat.length ? kat.map((k, i) => `
-            <tr class="border-b border-slate-50 last:border-0">
-                <td class="py-2 pr-4 text-slate-400 font-medium">${i + 1}</td>
-                <td class="py-2 pr-4"><i class="${esc(k.ikon || 'ri-price-tag-3-line')} text-lg text-slate-500"></i></td>
-                <td class="py-2 pr-4 text-slate-700 font-semibold">${esc(k.nama)}</td>
-                <td class="py-2 text-slate-500">${esc(k.urutan)}</td>
-            </tr>`).join('') : '<tr><td colspan="4" class="py-4 text-center text-slate-400">Belum ada kategori.</td></tr>';
+            <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                <td class="py-2.5 pr-4 text-slate-400 font-medium">${i + 1}</td>
+                <td class="py-2.5 pr-4"><i class="${esc(k.ikon || 'ri-store-2-line')} text-lg text-slate-500"></i></td>
+                <td class="py-2.5 pr-4 text-slate-700 font-semibold">${esc(k.nama)}</td>
+                <td class="py-2.5 pr-4 text-slate-500">${esc(k.urutan || i + 1)}</td>
+                <td class="py-2.5 text-right">
+                    <div class="flex items-center justify-end gap-1.5">
+                        <button type="button" onclick="openCategoryEditModalById(${k.id || 0}, '${esc(k.nama)}', '${esc(k.ikon || 'ri-store-2-line')}')" class="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-200 hover:border-blue-200 flex items-center gap-1">
+                            <i class="ri-pencil-line"></i> Edit
+                        </button>
+                        <button type="button" onclick="deleteCategoryById(${k.id || 0}, '${esc(k.nama)}')" class="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-slate-200 hover:border-rose-200 flex items-center gap-1">
+                            <i class="ri-delete-bin-line"></i> Hapus
+                        </button>
+                    </div>
+                </td>
+            </tr>`).join('') : '<tr><td colspan="5" class="py-4 text-center text-slate-400">Belum ada kategori.</td></tr>';
     }
 }
 
