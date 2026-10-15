@@ -8,6 +8,9 @@ composer.phar
 
 # Environment & Secrets
 .env
+.env.*
+.env*
+env
 backend/.env
 
 # Node.js & TypeScript
