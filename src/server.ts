@@ -49,7 +49,15 @@ app.use('/api/settings', settingsRoutes);
 // 1. backend/api.php
 app.post('/backend/api.php', async (req: Request, res: Response) => {
   const { type, q } = req.body;
-  if (type === 'search') {
+  if (type === 'detect_sosmed') {
+    const { detectBusinessSocialMedia } = await import('./services/ai.service.js');
+    try {
+      const sosmed = await detectBusinessSocialMedia(req.body);
+      res.json({ status: 'success', sosmed });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  } else if (type === 'search') {
     // Deep hunt Instagram query
     const { searchOrganic } = await import('./services/deephunt.service.js');
     const organic = await searchOrganic(q);
@@ -155,6 +163,12 @@ app.all('/backend/deephunt.php', async (req: Request, res: Response) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// 7. backend/detect_sosmed.php
+app.all('/backend/detect_sosmed.php', (req: Request, res: Response, next) => {
+  req.url = '/detect-sosmed';
+  leadsRoutes(req, res, next);
 });
 
 // HTML Pages

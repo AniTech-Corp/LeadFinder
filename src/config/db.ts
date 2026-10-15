@@ -71,6 +71,7 @@ export async function initDatabase(): Promise<boolean> {
         phone VARCHAR(100),
         website TEXT,
         ig_url TEXT,
+        sosmed_data JSON DEFAULT NULL,
         status VARCHAR(50) DEFAULT 'baru',
         industry VARCHAR(100) DEFAULT 'UMKM',
         score INT DEFAULT 40,
@@ -79,6 +80,13 @@ export async function initDatabase(): Promise<boolean> {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    // Ensure sosmed_data column exists if table was created previously
+    try {
+      await pool.query('ALTER TABLE leads ADD COLUMN IF NOT EXISTS sosmed_data JSON DEFAULT NULL;');
+    } catch {
+      // Ignored if column already exists or unsupported
+    }
 
     // 6. Create tbl_katalog_layanan
     await pool.query(`

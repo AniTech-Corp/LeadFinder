@@ -318,6 +318,430 @@ document.addEventListener('click', e => {
 let currentPage = 1;
 const itemsPerPage = 5;
 
+// ==========================================
+// AI SOCIAL MEDIA DETECTIVE & ACTIONS HUB
+// ==========================================
+
+function getLeadByCid(cid) {
+    if (window.currentLeads && window.currentLeads.length > 0) {
+        const found = window.currentLeads.find(l => String(l.cid) === String(cid));
+        if (found) return found;
+    }
+    if (window.masterLeads && window.masterLeads.length > 0) {
+        const found = window.masterLeads.find(l => String(l.cid) === String(cid));
+        if (found) return found;
+    }
+    if (window.allDatabaseLeads && window.allDatabaseLeads.length > 0) {
+        const found = window.allDatabaseLeads.find(l => String(l.cid) === String(cid));
+        if (found) return found;
+    }
+    return null;
+}
+
+function renderSosmedBadges(lead) {
+    let sosmed = lead.sosmed_data;
+    if (typeof sosmed === 'string') {
+        try { sosmed = JSON.parse(sosmed); } catch (e) { sosmed = null; }
+    }
+
+    // Fallback jika belum ada sosmed_data tapi ada data nomor HP / IG
+    if (!sosmed) {
+        const phone = lead.phoneNumber || lead.phone;
+        const waLink = phone ? `https://wa.me/${phone.replace(/[^0-9]/g, '').replace(/^0/, '62')}` : null;
+        const igLink = (lead.igUrl && lead.igUrl.includes('http')) ? lead.igUrl : null;
+        if (waLink || igLink) {
+            sosmed = {
+                whatsapp: waLink,
+                instagram: igLink,
+                tiktok: null,
+                facebook: null,
+                maps: lead.cid ? `https://www.google.com/maps?cid=${lead.cid}` : null,
+                website: lead.website || null,
+                ai_summary: null
+            };
+        }
+    }
+
+    if (!sosmed) {
+        return `
+            <button onclick="detectSosmedForLeadByCid('${lead.cid}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 flex items-center gap-1 transition-all shadow-2xs whitespace-nowrap" title="Deteksi akun media sosial UMKM ini dengan AI">
+                <i class="ri-sparkling-2-fill text-amber-500"></i> Scan AI
+            </button>
+        `;
+    }
+
+    let badges = [];
+
+    // WhatsApp
+    if (sosmed.whatsapp) {
+        badges.push(`<a href="${sosmed.whatsapp}" target="_blank" title="WhatsApp: Hubungi Langsung" class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-2xs"><i class="ri-whatsapp-fill"></i></a>`);
+    }
+
+    // Instagram
+    if (sosmed.instagram) {
+        const isSearch = sosmed.instagram.includes('/explore/tags/');
+        badges.push(`<a href="${sosmed.instagram}" target="_blank" title="${isSearch ? 'Cari Instagram' : 'Profil Instagram'}" class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-2xs"><i class="ri-instagram-fill"></i></a>`);
+    }
+
+    // TikTok
+    if (sosmed.tiktok) {
+        badges.push(`<a href="${sosmed.tiktok}" target="_blank" title="TikTok" class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-2xs"><i class="ri-tiktok-fill"></i></a>`);
+    }
+
+    // Facebook
+    if (sosmed.facebook) {
+        badges.push(`<a href="${sosmed.facebook}" target="_blank" title="Facebook" class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-2xs"><i class="ri-facebook-fill"></i></a>`);
+    }
+
+    // Maps
+    if (sosmed.maps) {
+        badges.push(`<a href="${sosmed.maps}" target="_blank" title="Google Maps" class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-2xs"><i class="ri-map-pin-2-fill"></i></a>`);
+    }
+
+    if (badges.length === 0) {
+        return `<button onclick="detectSosmedForLeadByCid('${lead.cid}')" class="text-xs text-slate-400 hover:text-indigo-600 flex items-center gap-1"><i class="ri-search-eye-line"></i> Scan AI</button>`;
+    }
+
+    return `
+        <div class="flex items-center gap-1.5 flex-wrap">
+            ${badges.join('')}
+            <button onclick="openSosmedModalByCid('${lead.cid}')" class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center text-xs transition-colors" title="Buka Detail Akun Media Sosial">
+                <i class="ri-links-line"></i>
+            </button>
+        </div>
+    `;
+}
+
+function openSosmedModalByCid(cid) {
+    const lead = getLeadByCid(cid);
+    if (lead) openSosmedModal(lead);
+}
+
+function openSosmedModal(lead) {
+    if (!lead) return;
+    window.currentModalLead = lead;
+
+    const modal = document.getElementById('sosmedModal');
+    if (!modal) return;
+
+    document.getElementById('modalSosmedTitle').innerText = lead.title || 'Profil Usaha';
+    document.getElementById('modalSosmedSubtitle').innerText = `${lead.searchCategory || lead.industry || 'UMKM'} • ${lead.address || 'Indonesia'}`;
+
+    let sosmed = lead.sosmed_data;
+    if (typeof sosmed === 'string') {
+        try { sosmed = JSON.parse(sosmed); } catch (e) { sosmed = null; }
+    }
+
+    const summaryEl = document.getElementById('modalAiSummary');
+    if (sosmed && sosmed.ai_summary) {
+        summaryEl.innerText = sosmed.ai_summary;
+    } else {
+        summaryEl.innerText = "Belum dipindai oleh AI Intelligence. Klik 'Pindai Ulang AI' untuk mendeteksi profil media sosial secara otomatis.";
+    }
+
+    const listContainer = document.getElementById('modalSosmedList');
+    listContainer.innerHTML = '';
+
+    const phoneWa = (lead.phoneNumber || lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
+
+    const channels = [
+        {
+            key: 'instagram',
+            name: 'Instagram',
+            icon: 'ri-instagram-fill',
+            color: 'from-amber-500 via-rose-500 to-purple-600',
+            url: sosmed?.instagram || (lead.igUrl && lead.igUrl.includes('http') ? lead.igUrl : null)
+        },
+        {
+            key: 'tiktok',
+            name: 'TikTok',
+            icon: 'ri-tiktok-fill',
+            color: 'from-slate-800 to-black',
+            url: sosmed?.tiktok || null
+        },
+        {
+            key: 'facebook',
+            name: 'Facebook',
+            icon: 'ri-facebook-fill',
+            color: 'from-blue-600 to-blue-700',
+            url: sosmed?.facebook || null
+        },
+        {
+            key: 'whatsapp',
+            name: 'WhatsApp Business',
+            icon: 'ri-whatsapp-fill',
+            color: 'from-emerald-500 to-teal-600',
+            url: sosmed?.whatsapp || (phoneWa ? `https://wa.me/${phoneWa}` : null)
+        },
+        {
+            key: 'maps',
+            name: 'Google Maps',
+            icon: 'ri-map-pin-2-fill',
+            color: 'from-amber-500 to-orange-600',
+            url: sosmed?.maps || (lead.cid ? `https://www.google.com/maps?cid=${lead.cid}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.title + ' ' + (lead.address || ''))}`)
+        },
+        {
+            key: 'website',
+            name: 'Website / Bio Link',
+            icon: 'ri-global-line',
+            color: 'from-indigo-600 to-purple-600',
+            url: sosmed?.website || lead.website || null
+        }
+    ];
+
+    channels.forEach(ch => {
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-white hover:border-indigo-100 hover:shadow-xs transition-all";
+
+        const hasUrl = !!ch.url;
+        const displayVal = hasUrl ? ch.url.replace(/^https?:\/\/(www\.)?/, '') : 'Belum terdeteksi';
+
+        item.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0 pr-2">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white bg-gradient-to-tr ${ch.color} shrink-0 text-base shadow-2xs">
+                    <i class="${ch.icon}"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        ${ch.name}
+                        ${hasUrl ? `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>` : `<span class="text-[10px] font-normal text-slate-400">(-)</span>`}
+                    </div>
+                    <div class="text-[11px] text-slate-500 truncate max-w-[190px] sm:max-w-[240px]">
+                        ${displayVal}
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                ${hasUrl ? `
+                    <button onclick="copyToClipboard('${ch.url}', '${ch.name}')" class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center gap-1 transition-colors">
+                        <i class="ri-file-copy-line"></i> Salin
+                    </button>
+                    <a href="${ch.url}" target="_blank" class="px-2.5 py-1 text-[11px] font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-lg flex items-center gap-1 transition-colors">
+                        <i class="ri-external-link-line"></i> Buka
+                    </a>
+                ` : `
+                    <button onclick="detectSosmedForLead(window.currentModalLead, true)" class="px-2 py-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+                        Scan AI
+                    </button>
+                `}
+            </div>
+        `;
+        listContainer.appendChild(item);
+    });
+
+    const rescanBtn = document.getElementById('modalRescanBtn');
+    if (rescanBtn) {
+        rescanBtn.onclick = () => detectSosmedForLead(lead, true);
+    }
+
+    const aiDraftBtn = document.getElementById('modalAiDraftBtn');
+    if (aiDraftBtn) {
+        aiDraftBtn.onclick = () => {
+            closeSosmedModal();
+            openAiPitchModal(lead);
+        };
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeSosmedModal() {
+    const modal = document.getElementById('sosmedModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function openAiPitchModalByCid(cid) {
+    const lead = getLeadByCid(cid);
+    if (lead) openAiPitchModal(lead);
+}
+
+async function openAiPitchModal(lead) {
+    if (!lead) return;
+    const modal = document.getElementById('aiPitchModal');
+    if (!modal) return;
+
+    document.getElementById('pitchModalTitle').innerText = `Pitch WhatsApp: ${lead.title || 'UMKM'}`;
+    const textarea = document.getElementById('pitchModalTextarea');
+    textarea.value = "Sedang meracik pesan sales pitch personal via AI...";
+
+    const missing = [];
+    if (!lead.website) missing.push('website profil resmi');
+    if (!lead.igUrl || lead.igUrl === 'Tidak Ditemukan') missing.push('media sosial teroptimasi');
+
+    const phoneWa = (lead.phoneNumber || lead.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
+    const waDirectBtn = document.getElementById('pitchModalWaDirect');
+
+    try {
+        const resp = await fetch('/api/leads/ai-draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nama: lead.title, missing })
+        });
+        const res = await resp.json();
+        const draft = res.draft || `Halo kak, salam kenal saya dari tim digital agency Anitech. Menemukan profil *${lead.title}* di Google Maps dan melihat potensinya sangat bagus. Apakah berkenan jika kami bantu buatkan website profesional untuk meningkatkan omzet?`;
+        textarea.value = draft;
+
+        if (waDirectBtn) {
+            waDirectBtn.href = phoneWa ? `https://wa.me/${phoneWa}?text=${encodeURIComponent(draft)}` : '#';
+            waDirectBtn.target = "_blank";
+            if (!phoneWa) {
+                waDirectBtn.onclick = (e) => { e.preventDefault(); uiAlert("Nomor WhatsApp tidak tersedia untuk bisnis ini.", { type: 'warning' }); };
+            } else {
+                waDirectBtn.onclick = null;
+            }
+        }
+    } catch (e) {
+        const fallback = `Halo kak, salam kenal dari tim Anitech. Kami menemukan bisnis *${lead.title}* di Google Maps. Kami ingin menawarkan solusi digital dan pembuatan website untuk meningkatkan pelanggan.`;
+        textarea.value = fallback;
+        if (waDirectBtn && phoneWa) {
+            waDirectBtn.href = `https://wa.me/${phoneWa}?text=${encodeURIComponent(fallback)}`;
+        }
+    }
+
+    textarea.oninput = () => {
+        if (waDirectBtn && phoneWa) {
+            waDirectBtn.href = `https://wa.me/${phoneWa}?text=${encodeURIComponent(textarea.value)}`;
+        }
+    };
+
+    modal.classList.remove('hidden');
+}
+
+function closeAiPitchModal() {
+    const modal = document.getElementById('aiPitchModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function copyPitchText() {
+    const textarea = document.getElementById('pitchModalTextarea');
+    if (textarea) copyToClipboard(textarea.value, 'Draft Penawaran WhatsApp');
+}
+
+function copyToClipboard(text, label = 'Teks') {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            uiAlert(`${label} berhasil disalin!`, { type: 'success' });
+        }).catch(() => {
+            promptCopyFallback(text, label);
+        });
+    } else {
+        promptCopyFallback(text, label);
+    }
+}
+
+function promptCopyFallback(text, label) {
+    const dummy = document.createElement('textarea');
+    document.body.appendChild(dummy);
+    dummy.value = text;
+    dummy.select();
+    document.execCommand('copy');
+    document.body.removeChild(dummy);
+    uiAlert(`${label} berhasil disalin!`, { type: 'success' });
+}
+
+function toggleActionMenu(cid, e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById(`action-menu-${cid}`);
+    if (!menu) return;
+
+    document.querySelectorAll('[id^="action-menu-"]').forEach(m => {
+        if (m.id !== `action-menu-${cid}`) m.classList.add('hidden');
+    });
+
+    menu.classList.toggle('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-trigger')) {
+        document.querySelectorAll('[id^="action-menu-"]').forEach(m => m.classList.add('hidden'));
+    }
+});
+
+function detectSosmedForLeadByCid(cid) {
+    const lead = getLeadByCid(cid);
+    if (lead) detectSosmedForLead(lead);
+}
+
+async function detectSosmedForLead(lead, isModalUpdate = false) {
+    if (!lead) return;
+
+    const cell = document.getElementById(`td-sosmed-${lead.cid}`) || document.getElementById(`td-ig-${lead.cid}`);
+    if (cell) {
+        cell.innerHTML = `<span class="text-xs text-indigo-600 font-bold flex items-center gap-1.5"><i class="ri-loader-4-line animate-spin text-amber-500"></i> AI Deteksi...</span>`;
+    }
+
+    try {
+        const resp = await fetch('/api/leads/detect-sosmed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: lead.title,
+                address: lead.address,
+                phone: lead.phoneNumber || lead.phone,
+                website: lead.website,
+                category: lead.searchCategory || lead.industry,
+                mapsUrl: lead.cid ? `https://www.google.com/maps?cid=${lead.cid}` : '#',
+                cid: lead.cid
+            })
+        });
+
+        const res = await resp.json();
+        if (res.status === 'success' && res.sosmed) {
+            lead.sosmed_data = res.sosmed;
+            if (res.sosmed.instagram && !res.sosmed.instagram.includes('/explore/tags/')) {
+                lead.igUrl = res.sosmed.instagram;
+            }
+            await saveLeadToDB(lead);
+
+            if (cell) {
+                cell.innerHTML = renderSosmedBadges(lead);
+            }
+
+            if (isModalUpdate && window.currentModalLead?.cid === lead.cid) {
+                openSosmedModal(lead);
+            }
+
+            updateStats();
+            return res.sosmed;
+        }
+    } catch (err) {
+        console.error('[Detect Sosmed Error]', err);
+        if (cell) {
+            cell.innerHTML = renderSosmedBadges(lead);
+        }
+    }
+}
+
+async function detectAllSosmed() {
+    if (!currentLeads || currentLeads.length === 0) {
+        uiAlert("Belum ada data prospek untuk dideteksi.", { type: 'warning' });
+        return;
+    }
+
+    const btn = document.getElementById('detectAllSosmedBtn');
+    if (!btn) return;
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+
+    let count = 0;
+    for (let i = 0; i < currentLeads.length; i++) {
+        const lead = currentLeads[i];
+        btn.innerHTML = `<i class="ri-loader-4-line animate-spin text-amber-300"></i> Memindai (${i + 1}/${currentLeads.length})...`;
+        await detectSosmedForLead(lead);
+        count++;
+    }
+
+    btn.innerHTML = `<i class="ri-checkbox-circle-fill text-emerald-400"></i> Selesai (${count} UMKM)`;
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 3000);
+
+    uiAlert(`Berhasil memindai akun media sosial untuk ${count} prospek!`, { type: 'success', title: 'AI Detective Selesai' });
+}
+
 function renderTable() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
@@ -360,7 +784,7 @@ function renderTable() {
         const rating = lead.rating || '-';
         const reviews = lead.user_ratings_total || '0';
         const score = lead.score || 0;
-        const mapsUrl = lead.cid ? `https://www.google.com/maps?cid=${lead.cid}` : '#';
+        const mapsUrl = lead.cid ? `https://www.google.com/maps?cid=${lead.cid}` : (lead.title ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.title + ' ' + (lead.address || ''))}` : '#');
 
         let priorityClass = 'text-slate-600 bg-slate-50 border border-slate-200';
         let priorityIcon = 'ri-star-line';
@@ -379,18 +803,11 @@ function renderTable() {
             else kecamatan = parts[0].trim();
         }
 
-        let igDisplay = `<span class="text-slate-300"><i class="ri-search-eye-line animate-pulse"></i></span>`;
-        if (lead.igUrl === 'Tidak Ditemukan') igDisplay = `<span class="text-slate-400">-</span>`;
-        else if (lead.igUrl && lead.igUrl.includes('http')) {
-            const handle = lead.igUrl.split('/').filter(Boolean).pop();
-            igDisplay = `<a href="${lead.igUrl}" target="_blank" class="text-pink-500 hover:underline flex items-center gap-1.5"><i class="ri-instagram-fill"></i> @${handle}</a>`;
-        }
-
+        const sosmedBadges = renderSosmedBadges(lead);
         const phoneWa = phone !== '-' ? phone.replace(/[^0-9]/g, '').replace(/^0/, '62') : '';
 
-        // Generate dummy initial avatar based on name
+        // Generate initial avatar based on name
         const initial = name.charAt(0).toUpperCase();
-
         const trueIndex = startIndex + idx;
 
         let webDisplay = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200">Belum Ada</span>`;
@@ -410,7 +827,7 @@ function renderTable() {
             <td class="py-3 px-4"><span class="text-blue-500 text-xs font-bold">${category}</span></td>
             <td class="py-3 px-4">${kecamatan}</td>
             <td class="py-3 px-4">${phone}</td>
-            <td class="py-3 px-4" id="td-ig-${lead.cid}">${igDisplay}</td>
+            <td class="py-3 px-4" id="td-sosmed-${lead.cid}">${sosmedBadges}</td>
             <td class="py-3 px-4">${webDisplay}</td>
             <td class="py-3 px-4 text-amber-500 font-bold"><i class="ri-star-fill"></i> ${rating}</td>
             <td class="py-3 px-4 text-slate-500"><i class="ri-chat-1-line text-slate-400"></i> ${reviews}</td>
@@ -422,9 +839,43 @@ function renderTable() {
             </td>
             <td class="py-3 px-4 text-center">
                 <div class="flex items-center justify-center gap-2">
-                    ${phoneWa ? `<a href="https://wa.me/${phoneWa}" target="_blank" class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition-colors"><i class="ri-whatsapp-fill"></i></a>` : `<span class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center"><i class="ri-whatsapp-fill"></i></span>`}
-                    <a href="${mapsUrl}" target="_blank" class="text-slate-400 hover:text-slate-600"><i class="ri-link"></i></a>
-                    <button class="text-slate-400 hover:text-slate-600"><i class="ri-more-2-fill"></i></button>
+                    ${phoneWa ? `
+                        <button onclick="openAiPitchModalByCid('${lead.cid}')" title="Kirim Pesan WhatsApp (AI Pitch)" class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 hover:scale-105 transition-all shadow-sm">
+                            <i class="ri-whatsapp-fill"></i>
+                        </button>
+                    ` : `
+                        <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-300 flex items-center justify-center" title="Nomor telepon tidak tersedia">
+                            <i class="ri-whatsapp-fill"></i>
+                        </span>
+                    `}
+                    
+                    <button onclick="openSosmedModalByCid('${lead.cid}')" title="Hub Media Sosial (AI Detective)" class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:scale-105 flex items-center justify-center transition-all shadow-sm">
+                        <i class="ri-link"></i>
+                    </button>
+
+                    <div class="relative inline-block text-left dropdown-trigger">
+                        <button onclick="toggleActionMenu('${lead.cid}', event)" title="Menu Aksi Lainnya" class="w-7 h-7 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors">
+                            <i class="ri-more-2-fill"></i>
+                        </button>
+                        <div id="action-menu-${lead.cid}" class="hidden absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-40 text-left text-xs divide-y divide-slate-100">
+                            <div class="py-1">
+                                <button onclick="detectSosmedForLeadByCid('${lead.cid}')" class="w-full px-3 py-1.5 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 font-medium">
+                                    <i class="ri-sparkling-fill text-amber-500"></i> Pindai Sosmed AI
+                                </button>
+                                <button onclick="openSosmedModalByCid('${lead.cid}')" class="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium">
+                                    <i class="ri-share-line text-blue-500"></i> Buka Sosmed Hub
+                                </button>
+                            </div>
+                            <div class="py-1">
+                                <button onclick="openAiPitchModalByCid('${lead.cid}')" class="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium">
+                                    <i class="ri-chat-smile-2-line text-emerald-500"></i> Draft Pitch WA AI
+                                </button>
+                                <a href="${mapsUrl}" target="_blank" class="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium">
+                                    <i class="ri-map-pin-line text-rose-500"></i> Buka Google Maps
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </td>
         `;
@@ -583,58 +1034,12 @@ async function startSearch() {
 }
 
 async function runDeepHunt() {
-    const leadsToEnrich = currentLeads.filter(l => !l.website && (!l.igUrl || l.igUrl === 'Tidak Ditemukan' || !l.igUrl.includes('http')));
+    const leadsToEnrich = currentLeads.filter(l => !l.sosmed_data);
 
     for (let i = 0; i < leadsToEnrich.length; i++) {
         const lead = leadsToEnrich[i];
-        try {
-            const res = await fetch('backend/api.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ q: `${lead.title} ${lead.address} instagram`, type: 'search' })
-            });
-            const result = await res.json();
-
-            let foundIg = null;
-            if (result.organic) {
-                for (const org of result.organic) {
-                    if (org.link.includes('instagram.com')) {
-                        // Extract clean username
-                        const match = org.link.match(/instagram\.com\/([A-Za-z0-9_.]+)/);
-                        if (match && match[1]) {
-                            const username = match[1];
-                            const blocked = ['p', 'reel', 'explore', 'stories', 'tv', 'tags', 'dir'];
-                            if (!blocked.includes(username.toLowerCase())) {
-                                foundIg = username;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            lead.igUrl = foundIg ? `https://instagram.com/${foundIg}` : "Tidak Ditemukan";
-
-            const cell = document.getElementById(`td-ig-${lead.cid}`);
-            if (cell) {
-                if (foundIg) {
-                    cell.innerHTML = `<a href="https://instagram.com/${foundIg}" target="_blank" class="text-pink-500 hover:underline flex items-center gap-1.5"><i class="ri-instagram-fill"></i> @${foundIg}</a>`;
-                } else {
-                    cell.innerHTML = `<span class="text-slate-400">-</span>`;
-                }
-            }
-
-            updateStats();
-
-        } catch (e) {
-            lead.igUrl = "Tidak Ditemukan";
-            const cell = document.getElementById(`td-ig-${lead.cid}`);
-            if (cell) cell.innerHTML = `<span class="text-slate-400">-</span>`;
-        }
-
-        // Save updated IG info to Database
-        await saveLeadToDB(lead);
-        updateSidebarBadges(); // Live update sidebar
+        await detectSosmedForLead(lead);
+        updateSidebarBadges();
     }
 }
 
@@ -647,10 +1052,11 @@ async function saveLeadToDB(lead) {
                 cid: lead.cid,
                 title: lead.title,
                 address: lead.address,
-                phone: lead.phoneNumber,
+                phone: lead.phoneNumber || lead.phone,
                 website: lead.website,
-                ig_url: lead.igUrl,
-                industry: lead.searchCategory,
+                ig_url: lead.igUrl || (lead.sosmed_data?.instagram),
+                sosmed_data: lead.sosmed_data || null,
+                industry: lead.searchCategory || lead.industry,
                 score: lead.score
             })
         });
@@ -2002,11 +2408,7 @@ function renderDatabaseTable(data) {
             priorityIcon = 'ri-star-half-line';
         }
 
-        let igDisplay = `<span class="text-slate-400">-</span>`;
-        if (lead.ig_url !== 'Tidak Ditemukan' && lead.ig_url) {
-            const handle = lead.ig_url.split('/').filter(Boolean).pop();
-            igDisplay = `<a href="${lead.ig_url}" target="_blank" class="text-pink-500 hover:underline flex items-center gap-1"><i class="ri-instagram-fill"></i> @${handle}</a>`;
-        }
+        const sosmedBadges = renderSosmedBadges(lead);
 
         let skalaBadge = `<span class="px-2 py-1 bg-gray-100 text-gray-600 text-[11px] rounded font-semibold whitespace-nowrap">Kecil</span>`;
         if (lead.skala_bisnis === 'Besar') {
@@ -2033,7 +2435,7 @@ function renderDatabaseTable(data) {
                 </a>
             </td>
             <td class="py-4 px-5 font-semibold text-slate-700">${lead.phone || '-'}</td>
-            <td class="py-4 px-5">${igDisplay}</td>
+            <td class="py-4 px-5" id="td-db-sosmed-${lead.cid}">${sosmedBadges}</td>
             <td class="py-4 px-5 text-center font-bold text-slate-800">${lead.score}</td>
             <td class="py-4 px-5">${skalaBadge}</td>
             <td class="py-4 px-5">
@@ -2048,7 +2450,15 @@ function renderDatabaseTable(data) {
             </td>
             <td class="py-4 px-5 text-center">
                 <div class="flex items-center justify-center gap-2">
-                    ${lead.status === 'tersimpan' ? `<button onclick="updateLeadStatus('${lead.cid}', 'baru'); setTimeout(initDatabase, 300);" class="text-xs bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-sm whitespace-nowrap"><i class="ri-send-plane-fill mr-1"></i> Ke CRM</button>` : `<span class="text-[10px] font-bold bg-slate-100 text-slate-400 px-2 py-1 rounded whitespace-nowrap"><i class="ri-check-line"></i> Di CRM</span>`}
+                    ${phoneWa ? `
+                        <button onclick="event.stopPropagation(); openAiPitchModalByCid('${lead.cid}')" title="Kirim Pesan WhatsApp (AI Pitch)" class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 hover:scale-105 transition-all shadow-2xs">
+                            <i class="ri-whatsapp-fill"></i>
+                        </button>
+                    ` : ''}
+                    <button onclick="event.stopPropagation(); openSosmedModalByCid('${lead.cid}')" title="Hub Media Sosial (AI Detective)" class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:scale-105 flex items-center justify-center transition-all shadow-2xs">
+                        <i class="ri-link"></i>
+                    </button>
+                    ${lead.status === 'tersimpan' ? `<button onclick="event.stopPropagation(); updateLeadStatus('${lead.cid}', 'baru'); setTimeout(initDatabase, 300);" class="text-xs bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-2xs whitespace-nowrap"><i class="ri-send-plane-fill mr-1"></i> Ke CRM</button>` : `<span class="text-[10px] font-bold bg-slate-100 text-slate-400 px-2 py-1 rounded whitespace-nowrap"><i class="ri-check-line"></i> Di CRM</span>`}
                 </div>
             </td>
         `;

@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { scrapeGooglePlacesViaApify } from '../services/apify.service.js';
 import { runDeepHunt } from '../services/deephunt.service.js';
-import { generateWhatsAppPitch } from '../services/ai.service.js';
+import { generateWhatsAppPitch, detectBusinessSocialMedia } from '../services/ai.service.js';
+import { pool } from '../config/db.js';
 
 const router = Router();
 
@@ -48,4 +49,41 @@ router.post('/ai-draft', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// POST /api/leads/detect-sosmed - Deteksi sosial media (Instagram, TikTok, Facebook, WA, Maps) via AI & Bio link crawler
+router.post('/detect-sosmed', async (req: Request, res: Response): Promise<void> => {
+  const { title, address, phone, website, category, mapsUrl, cid } = req.body || {};
+  if (!title) {
+    res.status(400).json({ error: 'Nama bisnis (title) wajib disertakan.' });
+    return;
+  }
+
+  try {
+    const sosmed = await detectBusinessSocialMedia({
+      title,
+      address,
+      phone,
+      website,
+      category,
+      mapsUrl,
+    });
+
+    if (cid && pool) {
+      try {
+        await pool.query(
+          `UPDATE leads SET sosmed_data = ?, ig_url = COALESCE(?, ig_url) WHERE cid = ?`,
+          [JSON.stringify(sosmed), sosmed.instagram, cid]
+        );
+      } catch (err: any) {
+        console.warn('[Update Lead Sosmed Error]', err.message);
+      }
+    }
+
+    res.json({ status: 'success', sosmed });
+  } catch (error: any) {
+    console.error('[Detect Sosmed Route Error]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
+

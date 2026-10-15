@@ -55,12 +55,18 @@ router.post('/leads', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const sosmedJson = input.sosmed_data
+      ? (typeof input.sosmed_data === 'string' ? input.sosmed_data : JSON.stringify(input.sosmed_data))
+      : null;
+
     const query = `
-      INSERT INTO leads (cid, title, address, phone, website, ig_url, industry, score, skala_bisnis, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'tersimpan')
+      INSERT INTO leads (cid, title, address, phone, website, ig_url, sosmed_data, industry, score, skala_bisnis, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'tersimpan')
       ON DUPLICATE KEY UPDATE
         title=VALUES(title), address=VALUES(address), phone=VALUES(phone),
-        website=VALUES(website), ig_url=VALUES(ig_url), skala_bisnis=VALUES(skala_bisnis),
+        website=VALUES(website), ig_url=VALUES(ig_url),
+        sosmed_data=COALESCE(VALUES(sosmed_data), sosmed_data),
+        skala_bisnis=VALUES(skala_bisnis),
         industry=VALUES(industry), score=VALUES(score);
     `;
 
@@ -71,6 +77,7 @@ router.post('/leads', async (req: Request, res: Response): Promise<void> => {
       input.phone || '',
       input.website || '',
       input.ig_url || '',
+      sosmedJson,
       input.industry || 'UMKM',
       input.score || 50,
       input.skala_bisnis || 'Kecil',
