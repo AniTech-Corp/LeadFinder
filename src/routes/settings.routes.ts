@@ -156,7 +156,7 @@ router.put('/kategori/:id', async (req: Request, res: Response): Promise<void> =
 
     // Sinkronkan nama kategori di tabel leads jika nama berubah
     if (oldNama !== trimmedNama) {
-      await pool.query('UPDATE leads SET category = ? WHERE category = ?', [trimmedNama, oldNama]);
+      await pool.query('UPDATE leads SET industry = ? WHERE industry = ?', [trimmedNama, oldNama]);
     }
 
     res.json({
