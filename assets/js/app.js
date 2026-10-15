@@ -211,6 +211,94 @@ async function loadView(viewName) {
             }
         });
 
+        // Update Dynamic Header Text Responsively
+        const headerTitleEl = document.getElementById('headerTitle');
+        const headerSubtitleEl = document.getElementById('headerSubtitle');
+        const headerBadgeEl = document.getElementById('headerBadge');
+
+        const VIEW_HEADERS = {
+            'dashboard': {
+                title: 'Dashboard Ringkasan',
+                badge: 'Overview',
+                subtitle: 'Gambaran umum prospek UMKM, metrik konversi, dan performa kategori.'
+            },
+            'pencarian': {
+                title: 'Pencarian Prospek (Web Scraping)',
+                badge: 'Apify Scraper',
+                subtitle: 'Temukan prospek UMKM tanpa website via scraping data Google Maps.'
+            },
+            'database': {
+                title: 'Database Tersimpan',
+                badge: 'CRM Database',
+                subtitle: 'Kelola seluruh prospek UMKM yang telah tersimpan di sistem.'
+            },
+            'cockpit_prioritas': {
+                title: 'Lead Cockpit: Prioritas Tinggi',
+                badge: 'Skor 70-100',
+                subtitle: 'Daftar prospek dengan potensi closing tertinggi untuk segera di-follow up.'
+            },
+            'cockpit_baru': {
+                title: 'Lead Cockpit: Prospek Baru',
+                badge: 'New Leads',
+                subtitle: 'Prospek UMKM yang baru ditemukan dan siap dihubungi.'
+            },
+            'cockpit_telepon': {
+                title: 'Lead Cockpit: Telepon Lagi',
+                badge: 'Call Back',
+                subtitle: 'Prospek yang perlu dihubungi kembali sesuai jadwal janji.'
+            },
+            'cockpit_followup': {
+                title: 'Lead Cockpit: Follow Up',
+                badge: 'In Progress',
+                subtitle: 'Prospek dalam proses komunikasi, penawaran, dan negosiasi.'
+            },
+            'cockpit_demo': {
+                title: 'Lead Cockpit: Jadwal Demo',
+                badge: 'Demo Website',
+                subtitle: 'Prospek yang telah menjadwalkan presentasi preview demo website.'
+            },
+            'cockpit_cut': {
+                title: 'Lead Cockpit: Cut / Unqualified',
+                badge: 'Closed Lost',
+                subtitle: 'Prospek yang belum bersedia atau belum memenuhi target kriteria.'
+            },
+            'cockpit_antrian': {
+                title: 'Lead Cockpit: Antrian Project',
+                badge: 'Onboarding',
+                subtitle: 'Prospek yang closing dan masuk ke antrian pengerjaan website.'
+            },
+            'cockpit_selesai': {
+                title: 'Lead Cockpit: Project Selesai',
+                badge: 'Delivered',
+                subtitle: 'Proyek website UMKM yang telah selesai dibuat dan diserahkan.'
+            },
+            'administrasi_proposal': {
+                title: 'Administrasi: Proposal Penawaran',
+                badge: 'Proposal PDF',
+                subtitle: 'Generate proposal penawaran resmi berformat PDF untuk klien UMKM.'
+            },
+            'administrasi_invoice': {
+                title: 'Administrasi: Invoice & Tagihan',
+                badge: 'Invoice PDF',
+                subtitle: 'Generate dan pantau status tagihan invoice untuk project website klien.'
+            },
+            'pengaturan': {
+                title: 'Pengaturan Sistem',
+                badge: 'Konfigurasi',
+                subtitle: 'Kelola integrasi Apify API, AI Copywriting, dan identitas perusahaan.'
+            }
+        };
+
+        const vInfo = VIEW_HEADERS[viewName] || {
+            title: 'Selamat Datang!',
+            badge: 'Web Scraping UMKM',
+            subtitle: 'Temukan dan kelola prospek UMKM yang belum memiliki website via Web Scraping Google Maps.'
+        };
+
+        if (headerTitleEl) headerTitleEl.innerText = vInfo.title;
+        if (headerSubtitleEl) headerSubtitleEl.innerText = vInfo.subtitle;
+        if (headerBadgeEl) headerBadgeEl.innerText = vInfo.badge;
+
     } catch (error) {
         document.getElementById('router-view').innerHTML = `<div class="p-8 text-center text-rose-500 font-bold"><i class="ri-error-warning-line text-4xl mb-2"></i><br>Halaman tidak ditemukan.</div>`;
     }
