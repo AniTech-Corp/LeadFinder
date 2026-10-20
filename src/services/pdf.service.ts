@@ -93,10 +93,12 @@ export function generatePdfDocument(params: GeneratePdfParams): Promise<{ filePa
 
       // --- PAYMENT & TERMS ---
       const termsY = summaryY + 70;
-      doc.roundedRect(40, termsY, 515, 60, 6).fillColor('#f1f5f9').fill();
-      doc.fillColor('#334155').fontSize(9).font('Helvetica-Bold').text('Informasi Pembayaran / Rekening:', 50, termsY + 10);
-      doc.font('Helvetica').text('Bank BCA: 829-123-4567 a.n PT Anitech Solusi Digital', 50, termsY + 24);
-      doc.text('Konfirmasi transfer dapat dikirimkan ke WhatsApp resmi kami dengan menyertakan nomor dokumen.', 50, termsY + 38);
+      doc.roundedRect(40, termsY, 515, 75, 6).fillColor('#f8fafc').strokeColor('#cbd5e1').lineWidth(0.8).fillAndStroke();
+      doc.fillColor('#1e293b').fontSize(9).font('Helvetica-Bold').text('Informasi Pembayaran', 50, termsY + 10);
+      doc.font('Helvetica').fontSize(8.5).fillColor('#334155');
+      doc.text('1. Pembayaran via transfer ke BCA: 6872202613 a/n Mecca Alain Noor Sheehan.', 50, termsY + 25);
+      doc.text('2. Bagi pelanggan yang sudah memotong PPh 23, diwajibkan untuk mengirimkan E-Bupot PPh 23 ke email tax@7ion.co.id.', 50, termsY + 38);
+      doc.text('3. Tarif pajak pada invoice adalah 12% dari DPP Nilai Lain (PMK 131/2024).', 50, termsY + 51);
 
       // --- SIGNATURE ---
       const signY = termsY + 80;

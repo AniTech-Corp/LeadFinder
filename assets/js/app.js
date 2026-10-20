@@ -3078,6 +3078,7 @@ function reconstructDocRow(row) {
         subtotal: subtotal,
         diskon: diskon,
         ppn_persen: ppnPersen,
+        ppn_aktif: rincian.ppn_aktif !== false,
         ppn_nominal: ppnNominal,
         grand_total: grandTotal,
         total_tagihan: parseFloat(row.total_tagihan) || grandTotal,
@@ -3289,6 +3290,7 @@ async function generatePdf() {
         doc.subtotal = h.subtotal;
         doc.diskon = h.diskon;
         doc.ppn_persen = h.ppnPersen;
+        doc.ppn_aktif = h.ppnAktif;
         doc.ppn_nominal = h.ppnNominal;
         doc.grand_total = h.total;
         doc.total_tagihan = (jenis === 'invoice' && termin === 'dp') ? Math.round(h.total * 0.5) : h.total;

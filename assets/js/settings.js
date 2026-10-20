@@ -17,40 +17,37 @@
             nama: 'AniTech',
             nama_upper: 'ANITECH',
             alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-            kontak: '08132151962',
+            kontak: '081977241552',
             email: ''
         },
         brands: {
             anitech: {
-                id: 'anitech', nama: 'AniTech', nama_upper: 'ANITECH',
+                id: 'anitech', nama: 'AniTech', nama_upper: 'ANITECH STUDIO',
                 alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-                kontak: '08132151962',
+                kontak: '081977241552',
                 logo: 'assets/logo/Logo AniTech Transparan.webp',
                 bank: [
-                    { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-                    { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+                    { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
                 ],
                 warna: { r: 30, g: 58, b: 138 }
             },
             klir_by_anitech: {
                 id: 'klir_by_anitech', nama: 'KLIR by AniTech', nama_upper: 'KLIR BY ANITECH',
                 alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-                kontak: '08132151962',
+                kontak: '081977241552',
                 logo: 'assets/logo/[Text Hitam] Logo KLIR V2 Transparan.webp',
                 bank: [
-                    { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-                    { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+                    { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
                 ],
                 warna: { r: 0, g: 0, b: 0 }
             },
             klir: {
-                id: 'klir', nama: 'KLIR', nama_upper: 'KLIR',
+                id: 'klir', nama: 'KLIR STUDIO', nama_upper: 'KLIR STUDIO',
                 alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-                kontak: '08132151962',
+                kontak: '081977241552',
                 logo: 'assets/logo/[Text Hitam] Logo KLIR V2 Transparan.webp',
                 bank: [
-                    { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-                    { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+                    { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
                 ],
                 warna: { r: 0, g: 0, b: 0 }
             }

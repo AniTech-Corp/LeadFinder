@@ -13,40 +13,37 @@
 const DOKUMEN_BRANDS = {
     anitech: {
         id: 'anitech',
-        nama: 'AniTech',
-        nama_upper: 'ANITECH',
+        nama: 'ANITECH STUDIO',
+        nama_upper: 'ANITECH STUDIO',
         alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-        kontak: '08132151962',
+        kontak: '081977241552',
         logo: 'assets/logo/Logo AniTech Transparan.webp',
         bank: [
-            { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-            { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+            { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
         ],
         warna: { r: 30, g: 58, b: 138 } // #1e3a8a (primary)
     },
     klir_by_anitech: {
         id: 'klir_by_anitech',
-        nama: 'KLIR by AniTech',
+        nama: 'KLIR BY ANITECH',
         nama_upper: 'KLIR BY ANITECH',
         alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-        kontak: '08132151962',
+        kontak: '081977241552',
         logo: 'assets/logo/[Text Hitam] Logo KLIR V2 Transparan.webp',
         bank: [
-            { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-            { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+            { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
         ],
         warna: { r: 0, g: 0, b: 0 }
     },
     klir: {
         id: 'klir',
-        nama: 'KLIR',
-        nama_upper: 'KLIR',
+        nama: 'KLIR STUDIO',
+        nama_upper: 'KLIR STUDIO',
         alamat: 'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414',
-        kontak: '08132151962',
+        kontak: '081977241552',
         logo: 'assets/logo/[Text Hitam] Logo KLIR V2 Transparan.webp',
         bank: [
-            { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-            { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' }
+            { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
         ],
         warna: { r: 0, g: 0, b: 0 }
     }
@@ -63,6 +60,13 @@ function dokumenBrandsMap() {
 
 function dokumenFormatRupiah(n) {
     return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0));
+}
+
+function dokumenFormatNominal(val) {
+    if (val === 0 || val === '0' || val === 'Free') return 'Free';
+    const num = typeof val === 'number' ? val : parseFloat(String(val || '').replace(/[^0-9.-]+/g, ''));
+    if (isNaN(num) || num === 0) return 'Free';
+    return new Intl.NumberFormat('id-ID').format(Math.round(num));
 }
 
 function dokumenFormatTanggal(str) {
@@ -119,200 +123,317 @@ async function dokumenRender(doc, kind) {
     const P = dokumenBrandsMap()[DOKUMEN_BRAND_ID] || DOKUMEN_BRANDS.anitech;
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const M = 40;
+    const M = 45;
     const isInvoice = kind === 'invoice';
     const logo = await dokumenLoadLogo(DOKUMEN_BRAND_ID);
 
     // ================= HEADER =================
-    // Kiri: nama + alamat + kontak
-    pdf.setFont('times', 'bold');
-    pdf.setFontSize(18);
-    pdf.setTextColor(17, 24, 39);
-    pdf.text(P.nama, M, 60);
+    // Kiri: Nama Brand + Alamat + Kontak (telepon langsung tanpa prefix 'Telp')
+    const brandTitle = (P.nama_upper || P.nama || 'KLIR STUDIO').toUpperCase();
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(17);
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(brandTitle, M, 58);
 
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8.5);
+    pdf.setFontSize(9);
     pdf.setTextColor(71, 85, 105);
-    const addrLines = pdf.splitTextToSize(P.alamat, 260);
-    pdf.text(addrLines, M, 76);
-    let leftBottom = 76 + addrLines.length * 11;
-    pdf.text('Telp: ' + P.kontak, M, leftBottom + 2);
-    leftBottom += 2;
+    const addrLines = pdf.splitTextToSize(P.alamat || '', 255);
+    pdf.text(addrLines, M, 74);
+    let leftBottom = 74 + addrLines.length * 11.5;
+    if (P.kontak) {
+        pdf.text(String(P.kontak), M, leftBottom + 1);
+        leftBottom += 14;
+    }
 
-    // Kanan: logo + nomor seri
-    let rightBottom = 46;
+    // Kanan: Logo Brand + Nomor Dokumen tepat di bawah logo
+    let rightBottom = 45;
+    const docNo = doc.no_seri || doc.no_dokumen || (isInvoice ? 'INV/2026/10/001' : 'PRO/2026/10/001');
+    const colW = 75;
+    const colX = pageW - M - colW;
+
     if (logo) {
-        const lw = 60;
+        const lw = 46;
         const lh = lw * (logo.h / logo.w);
-        pdf.addImage(logo.dataUrl, 'PNG', pageW - M - lw, 40, lw, lh);
-        rightBottom = 40 + lh;
+        const lx = colX + (colW - lw) / 2;
+        pdf.addImage(logo.dataUrl, 'PNG', lx, 38, lw, lh);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text(docNo, colX + colW / 2, 38 + lh + 12, { align: 'center' });
+        rightBottom = 38 + lh + 20;
+    } else {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text(docNo, pageW - M, 55, { align: 'right' });
+        rightBottom = 65;
     }
+
+    // ================= METADATA BAR (Tanggal terbit, jatuh tempo, status) =================
+    let y = Math.max(leftBottom, rightBottom) + 16;
+    pdf.setDrawColor(180, 190, 205);
+    pdf.setLineWidth(0.8);
+    pdf.line(M, y, pageW - M, y);
+
+    y += 14;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text('Tanggal terbit', M + 50, y, { align: 'center' });
+    pdf.text(isInvoice ? 'jatuh tempo' : 'Berlaku hingga', pageW / 2, y, { align: 'center' });
+    pdf.text('status', pageW - M - 50, y, { align: 'center' });
+
+    y += 15;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(dokumenFormatTanggal(doc.tanggal_terbit || doc.tanggal), M + 50, y, { align: 'center' });
+    pdf.text(doc.jatuh_tempo ? dokumenFormatTanggal(doc.jatuh_tempo) : '', pageW / 2, y, { align: 'center' });
+    pdf.text(dokumenLabelStatus(doc.status_bayar), pageW - M - 50, y, { align: 'center' });
+
+    y += 12;
+    pdf.line(M, y, pageW - M, y);
+
+    // ================= DITAGIHKAN KEPADA (Kotak Soft Cyan) =================
+    y += 18;
+    const klien = doc.klien || {};
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
-    pdf.setTextColor(71, 85, 105);
-    pdf.text('No. ' + (doc.no_seri || doc.no_dokumen || '-'), pageW - M, rightBottom + 14, { align: 'right' });
-    rightBottom += 14;
+    const klienAddrLines = pdf.splitTextToSize(klien.alamat || '-', pageW - 2 * M - 24);
+    const klienNamaLines = pdf.splitTextToSize(klien.nama || '-', pageW - 2 * M - 24);
+    let boxH = 12 + 13 + (klienNamaLines.length * 13) + 3 + (klienAddrLines.length * 11) + 10;
+    if (klien.telepon) boxH += 12;
 
-    let y = Math.max(leftBottom, rightBottom) + 18;
-    pdf.setDrawColor(P.warna.r, P.warna.g, P.warna.b);
-    pdf.setLineWidth(1.2);
-    pdf.line(M, y, pageW - M, y);
-    y += 22;
-
-    // ================= 3 KOLOM META =================
-    const metaH = 42;
-    pdf.setFillColor(248, 250, 252);
-    pdf.rect(M, y, pageW - 2 * M, metaH, 'F');
-    const colW = (pageW - 2 * M) / 3;
-    const metaCols = isInvoice
-        ? [
-            { label: 'TANGGAL TERBIT', value: dokumenFormatTanggal(doc.tanggal_terbit || doc.tanggal) },
-            { label: 'JATUH TEMPO', value: doc.jatuh_tempo ? dokumenFormatTanggal(doc.jatuh_tempo) : '-' },
-            { label: 'STATUS', value: dokumenLabelStatus(doc.status_bayar) }
-        ]
-        : [
-            { label: 'TANGGAL TERBIT', value: dokumenFormatTanggal(doc.tanggal_terbit || doc.tanggal) },
-            { label: 'BERLAKU HINGGA', value: doc.jatuh_tempo ? dokumenFormatTanggal(doc.jatuh_tempo) : '-' },
-            { label: 'STATUS', value: dokumenLabelStatus(doc.status_bayar) }
-        ];
-    metaCols.forEach((c, i) => {
-        const x = M + 16 + i * colW;
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(7.5);
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(c.label, x, y + 15);
-        pdf.setFontSize(10.5);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(String(c.value), x, y + 31);
-    });
-    y += metaH + 20;
-
-    // ================= PENERIMA (kotak abu-abu) =================
-    const klien = doc.klien || {};
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    const namaLines = pdf.splitTextToSize(klien.nama || '-', pageW - 2 * M - 32);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    const klienAddrLines = pdf.splitTextToSize(klien.alamat || '-', pageW - 2 * M - 32);
-    const boxH = 22 + namaLines.length * 14 + klienAddrLines.length * 12 + 16;
-
-    pdf.setFillColor(241, 245, 249);
+    pdf.setFillColor(230, 247, 246); // Soft cyan / mint (#e6f7f6)
     pdf.rect(M, y, pageW - 2 * M, boxH, 'F');
-    let by = y + 16;
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(7.5);
-    pdf.setTextColor(100, 116, 139);
-    pdf.text(isInvoice ? 'DITAGIHKAN KEPADA' : 'KEPADA', M + 16, by);
-    by += 16;
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.setTextColor(15, 23, 42);
-    pdf.text(namaLines, M + 16, by);
-    by += namaLines.length * 14;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(71, 85, 105);
-    pdf.text(klienAddrLines, M + 16, by);
-    by += klienAddrLines.length * 12;
-    if (klien.telepon) {
-        pdf.text('Telp/WA: ' + klien.telepon, M + 16, by);
-    }
-    y += boxH + 22;
 
-    // ================= TABEL RINCIAN 5 KOLOM =================
+    let by = y + 13;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text(isInvoice ? 'DITAGIHKAN KEPADA' : 'KEPADA', M + 12, by);
+
+    by += 14;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10.5);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(klienNamaLines, M + 12, by);
+
+    by += klienNamaLines.length * 13 + 3;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(klienAddrLines, M + 12, by);
+    by += klienAddrLines.length * 11;
+
+    if (klien.telepon) {
+        pdf.text('Telp/WA: ' + klien.telepon, M + 12, by + 2);
+    }
+    y += boxH + 18;
+
+    // ================= TABEL RINCIAN 5 KOLOM (Gaya Minimalist Berselang-Seling Cyan) =================
     const body = (doc.items || []).map(it => ([
-        it.deskripsi,
+        it.deskripsi || '-',
         String(it.qty != null ? it.qty : 1),
         it.satuan || 'Paket',
-        { content: dokumenFormatRupiah(it.harga_satuan), styles: { halign: 'right' } },
-        { content: dokumenFormatRupiah(it.total), styles: { halign: 'right' } }
+        dokumenFormatNominal(it.harga_satuan),
+        dokumenFormatNominal(it.total)
     ]));
 
     pdf.autoTable({
         startY: y,
-        head: [['Deskripsi', 'Qty', 'Satuan', 'Harga Satuan', 'Total']],
+        head: [['Deskripsi', 'Qty', 'Satuan', 'Harga satuan', 'Total']],
         body: body,
-        theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 6, valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.5 },
-        headStyles: { fillColor: false, textColor: [15, 23, 42], fontStyle: 'bold', halign: 'center' },
+        theme: 'plain',
+        styles: {
+            fontSize: 9,
+            cellPadding: 7,
+            valign: 'middle',
+            textColor: [15, 23, 42]
+        },
+        headStyles: {
+            fillColor: false,
+            textColor: [15, 23, 42],
+            fontStyle: 'bold',
+            fontSize: 9.5,
+            lineWidth: { top: 0.8, bottom: 0.8, left: 0, right: 0 },
+            lineColor: [180, 190, 205],
+            cellPadding: 7
+        },
         columnStyles: {
-            0: { cellWidth: 'auto' },
-            1: { cellWidth: 40, halign: 'center' },
-            2: { cellWidth: 70, halign: 'center' },
-            3: { cellWidth: 100, halign: 'right' },
-            4: { cellWidth: 100, halign: 'right' }
+            0: { cellWidth: 'auto', fontStyle: 'bold' },
+            1: { cellWidth: 45, halign: 'center' },
+            2: { cellWidth: 65, halign: 'center' },
+            3: { cellWidth: 95, halign: 'right' },
+            4: { cellWidth: 95, halign: 'right', fontStyle: 'bold' }
+        },
+        didParseCell: function(data) {
+            if (data.section === 'head') {
+                if (data.column.index === 1 || data.column.index === 2) {
+                    data.cell.styles.halign = 'center';
+                } else if (data.column.index === 3 || data.column.index === 4) {
+                    data.cell.styles.halign = 'right';
+                }
+            }
+            if (data.section === 'body') {
+                // Baris ganjil/genap selang-seling warna cyan lembut
+                if (data.row.index % 2 === 0) {
+                    data.cell.styles.fillColor = [230, 247, 246];
+                } else {
+                    data.cell.styles.fillColor = [255, 255, 255];
+                }
+            }
         },
         margin: { left: M, right: M }
     });
-    y = pdf.lastAutoTable.finalY + 40;
 
-    // ================= RINGKASAN NOMINAL =================
-    const boxX = pageW - M - 230;
-    const ruleY = (yy) => {
-        pdf.setDrawColor(226, 232, 240);
-        pdf.setLineWidth(0.6);
+    y = pdf.lastAutoTable.finalY;
+    pdf.setDrawColor(180, 190, 205);
+    pdf.setLineWidth(0.8);
+    pdf.line(M, y, pageW - M, y);
+
+    // ================= RINGKASAN NOMINAL (SUBTOTAL, DISKON, TOTAL TAGIHAN) =================
+    y += 18;
+    const boxW = 210;
+    const boxX = pageW - M - boxW;
+    const ruleSummary = (yy) => {
+        pdf.setDrawColor(180, 190, 205);
+        pdf.setLineWidth(0.7);
         pdf.line(boxX, yy, pageW - M, yy);
     };
-    let sy = y;
-    ruleY(sy);                    // garis atas blok
-    const baris = (label, nilai, opts = {}) => {
-        const cLabel = opts.warna || [71, 85, 105];
-        const cNilai = opts.warnaNilai || [15, 23, 42];
-        sy += opts.bold ? 16 : 15;
-        pdf.setFont('helvetica', opts.bold ? 'bold' : 'normal');
-        pdf.setFontSize(opts.bold ? 11 : 9.5);
-        pdf.setTextColor(cLabel[0], cLabel[1], cLabel[2]);
-        pdf.text(label, boxX, sy);
-        pdf.setTextColor(cNilai[0], cNilai[1], cNilai[2]);
-        pdf.text(nilai, pageW - M, sy, { align: 'right' });
-        sy += 6;
-        ruleY(sy);                // garis bawah tiap baris
-    };
-    baris('SUBTOTAL', dokumenFormatRupiah(doc.subtotal));
-    baris('DISKON', doc.diskon ? ('- ' + dokumenFormatRupiah(doc.diskon)) : dokumenFormatRupiah(0));
-    baris('PPN ' + (doc.ppn_persen || 0) + '%', dokumenFormatRupiah(doc.ppn_nominal));
-    baris('TOTAL TAGIHAN', dokumenFormatRupiah(doc.grand_total), { bold: true, warnaNilai: [P.warna.r, P.warna.g, P.warna.b] });
-    if (isInvoice) {
-        // Baris termin (label pendek + nilai rata kanan) supaya tidak terpotong
-        baris('TERMIN', doc.termin === 'dp' ? 'DP 50%' : 'PENUH', { warna: [100, 116, 139], warnaNilai: [100, 116, 139] });
-        baris('TAGIHAN SAAT INI', dokumenFormatRupiah(doc.total_tagihan), { warna: [100, 116, 139], warnaNilai: [100, 116, 139] });
+
+    const invoiceWithoutPpn = isInvoice && doc.ppn_aktif === false;
+    const drawSummary = (startY) => {
+        let sy = startY;
+        const summaryRow = (label, nilai, isBold = false) => {
+            sy += 14;
+            pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+            pdf.setFontSize(isBold ? 9.5 : 9);
+            pdf.setTextColor(isBold ? 15 : 71, isBold ? 23 : 85, isBold ? 42 : 105);
+            pdf.text(label, boxX, sy);
+            pdf.text(String(nilai), pageW - M, sy, { align: 'right' });
+            sy += 3;
+        };
+
+        summaryRow('SUBTOTAL', dokumenFormatNominal(doc.subtotal));
+        summaryRow('DISKON', doc.diskon ? dokumenFormatNominal(doc.diskon) : '0');
+        if (doc.ppn_nominal && doc.ppn_nominal > 0) {
+            summaryRow('PPN ' + (doc.ppn_persen || 0) + '%', dokumenFormatNominal(doc.ppn_nominal));
+        }
+        ruleSummary(sy + 2);
+        sy += 3;
+        summaryRow('TOTAL TAGIHAN', dokumenFormatNominal(doc.grand_total), true);
+        ruleSummary(sy + 2);
+        sy += 3;
+
+        if (isInvoice && doc.termin === 'dp') {
+            summaryRow('TAGIHAN SAAT INI (DP 50%)', dokumenFormatNominal(doc.total_tagihan), true);
+            ruleSummary(sy + 2);
+            sy += 3;
+        }
+
+        return sy;
     }
-    y = sy + 20;
 
-    // ================= FOOTER =================
-    if (y > pageH - 240) { pdf.addPage(); y = 60; }
+    if (invoiceWithoutPpn) {
+        y += 40;
+    } else {
+        y = drawSummary(y + 18) + 25;
+    }
 
-    if (!isInvoice) {
+    const banks = (Array.isArray(P.bank) && P.bank.length) ? P.bank : [
+        { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
+    ];
+    const bk = banks[0];
+
+    if (invoiceWithoutPpn) {
+        const paymentLines = pdf.splitTextToSize(
+            `Pembayaran via transfer ke ${bk.bank}: ${bk.no} a/n ${bk.atas}.`,
+            boxX - M - 26
+        );
+        const summaryRows = 3 + (isInvoice && doc.termin === 'dp' ? 1 : 0);
+        const infoSectionH = Math.max(76, 41 + paymentLines.length * 11 + 12, summaryRows * 17 + 23);
+
+        if (y + infoSectionH > pageH - 40) {
+            pdf.addPage();
+            y = 50;
+        }
+
+        pdf.setDrawColor(180, 190, 205);
+        pdf.setLineWidth(0.8);
+        pdf.line(M, y, pageW - M, y);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text('Informasi Pembayaran', M + 8, y + 16);
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text(paymentLines, M + 8, y + 41);
+
+        drawSummary(y);
+        y += infoSectionH + 15;
+    } else {
+        // ================= KOTAK INFORMASI PEMBAYARAN (ROUNDED BORDER) =================
+        const infoBoxH = isInvoice ? 76 : 65;
+        if (y + infoBoxH > pageH - 40) {
+            pdf.addPage();
+            y = 50;
+        }
+
+        pdf.setDrawColor(100, 116, 139);
+        pdf.setLineWidth(0.8);
+        pdf.roundedRect(M, y, pageW - 2 * M, infoBoxH, 8, 8, 'S');
+
+        let iy = y + 16;
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(9);
-        pdf.setTextColor(30, 64, 175);
-        pdf.text('KETERANGAN PROPOSAL', M, y);
-        y += 14;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(71, 85, 105);
-        const ket = 'Harga yang tercantum berlaku selama 14 hari sejak tanggal terbit. Jika setuju, silakan hubungi tim kami untuk proses administrasi selanjutnya.';
-        const ketLines = pdf.splitTextToSize(ket, pageW - 2 * M);
-        pdf.text(ketLines, M, y);
-        y += ketLines.length * 12 + 10;
+        pdf.setTextColor(15, 23, 42);
+
+        if (isInvoice) {
+            pdf.text('Informasi Pembayaran', M + 14, iy);
+            iy += 13;
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(51, 65, 85);
+            pdf.text(`1. Pembayaran via transfer ke ${bk.bank}: ${bk.no} a/n ${bk.atas}.`, M + 14, iy);
+
+            iy += 12;
+            pdf.text('2. Bagi pelanggan yang sudah memotong PPh 23, diwajibkan untuk mengirimkan E-Bupot PPh 23 ke email tax@7ion.co.id.', M + 14, iy);
+
+            iy += 12;
+            pdf.text('3. Tarif pajak pada invoice adalah 12% dari DPP Nilai Lain (PMK 131/2024).', M + 14, iy);
+
+            y += infoBoxH + 15;
+        } else {
+            pdf.text('Keterangan Proposal', M + 14, iy);
+            iy += 13;
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(51, 65, 85);
+            pdf.text('1. Harga yang tercantum berlaku selama 14 hari sejak tanggal proposal ini diterbitkan.', M + 14, iy);
+
+            iy += 12;
+            pdf.text('2. Jika Anda menyetujui penawaran ini, silakan hubungi tim kami untuk proses administrasi selanjutnya.', M + 14, iy);
+
+            y += infoBoxH + 15;
+        }
     }
 
     if (doc.catatan) {
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(15, 23, 42);
+        pdf.setFontSize(8.5);
         pdf.text('Catatan:', M, y);
         pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(71, 85, 105);
         const cl = pdf.splitTextToSize(doc.catatan, pageW - 2 * M);
-        pdf.text(cl, M, y + 13);
-        y += 13 + cl.length * 12 + 8;
+        pdf.text(cl, M, y + 11);
+        y += 11 + cl.length * 11 + 6;
     }
-
-    // Footer halaman
-    pdf.setFontSize(8);
-    pdf.setTextColor(148, 163, 184);
-    pdf.text('Dokumen ini digenerate otomatis oleh sistem Lead Finder Anitech.', pageW / 2, pageH - 30, { align: 'center' });
-    pdf.text('\u00A9 ' + new Date().getFullYear() + ' ' + P.nama + '. All rights reserved.', pageW / 2, pageH - 20, { align: 'center' });
 
     pdf.save(dokumenFilename(doc));
 }
