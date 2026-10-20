@@ -45,12 +45,15 @@ APIFY_TOKEN=apify_api_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### 3. Pastikan Database MySQL / MariaDB Berjalan
-Pastikan MySQL atau MariaDB lokal Anda aktif:
+### 3. Jalankan Database MySQL (Docker)
+Jalankan container database khusus untuk project ini menggunakan Docker Compose:
 ```bash
-sudo systemctl start mariadb   # Jika menggunakan MariaDB Linux
-# ATAU jalankan MySQL dari XAMPP / Docker
+npm run db:up
+# ATAU docker compose up -d
 ```
+Untuk menghentikan database: `npm run db:down`
+Untuk melihat log database: `npm run db:logs`
+
 > *Catatan: Sistem akan otomatis membuat database `leadscout` dan seluruh tabel yang dibutuhkan saat server pertama kali dijalankan.*
 
 ### 4. Jalankan Aplikasi

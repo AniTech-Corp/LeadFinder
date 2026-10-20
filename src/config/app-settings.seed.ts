@@ -23,18 +23,17 @@ export const DEFAULT_CATEGORIES: Array<{ nama: string; ikon: string; urutan: num
 
 const SHARED_ADDRESS =
   'Puri Gading Blok J4 No 8 Cluster Vila Ubud, RT002 RW011, Kel. Jatimelati, Kec. Pondok Melati, Kota Bekasi, 17414';
-const SHARED_KONTAK = '08132151962';
+const SHARED_KONTAK = '081977241552';
 
 const makeBank = () => [
-  { bank: 'BCA', no: '1234567890', atas: 'PT Anitech Digital' },
-  { bank: 'Mandiri', no: '0987654321', atas: 'PT Anitech Digital' },
+  { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' },
 ];
 
 export const DEFAULT_BRANDS: Record<string, any> = {
   anitech: {
     id: 'anitech',
     nama: 'AniTech',
-    nama_upper: 'ANITECH',
+    nama_upper: 'ANITECH STUDIO',
     alamat: SHARED_ADDRESS,
     kontak: SHARED_KONTAK,
     logo: 'assets/logo/Logo AniTech Transparan.webp',
@@ -53,8 +52,8 @@ export const DEFAULT_BRANDS: Record<string, any> = {
   },
   klir: {
     id: 'klir',
-    nama: 'KLIR',
-    nama_upper: 'KLIR',
+    nama: 'KLIR STUDIO',
+    nama_upper: 'KLIR STUDIO',
     alamat: SHARED_ADDRESS,
     kontak: SHARED_KONTAK,
     logo: 'assets/logo/[Text Hitam] Logo KLIR V2 Transparan.webp',

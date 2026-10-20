@@ -1,0 +1,22 @@
+services:
+  db:
+    image: mysql:8
+    container_name: leadscout-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: ${DB_NAME:-leadscout}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - leadscout_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  leadscout_db:
+    name: leadscout_db
+
