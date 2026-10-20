@@ -248,6 +248,8 @@ async function dokumenRender(doc, kind) {
     y = pdf.lastAutoTable.finalY + 40;
 
     // ================= RINGKASAN NOMINAL =================
+    const invoiceWithoutPpn = isInvoice && doc.ppn_aktif === false;
+    if (!invoiceWithoutPpn) {
     const boxX = pageW - M - 230;
     const ruleY = (yy) => {
         pdf.setDrawColor(226, 232, 240);
@@ -279,9 +281,62 @@ async function dokumenRender(doc, kind) {
         baris('TAGIHAN SAAT INI', dokumenFormatRupiah(doc.total_tagihan), { warna: [100, 116, 139], warnaNilai: [100, 116, 139] });
     }
     y = sy + 20;
+    }
 
     // ================= FOOTER =================
     if (y > pageH - 240) { pdf.addPage(); y = 60; }
+
+    if (invoiceWithoutPpn) {
+        const configuredBanks = window.APP_SETTINGS && window.APP_SETTINGS.brands && window.APP_SETTINGS.brands[DOKUMEN_BRAND_ID] && window.APP_SETTINGS.brands[DOKUMEN_BRAND_ID].bank;
+        const banks = (Array.isArray(configuredBanks) && configuredBanks.length) ? configuredBanks : [
+            { bank: 'BCA', no: '6872202613', atas: 'Mecca Alain Noor Sheehan' }
+        ];
+        const bk = banks[0];
+        const paymentLines = pdf.splitTextToSize(
+            `Pembayaran via transfer ke ${bk.bank}: ${bk.no} a/n ${bk.atas}.`,
+            pageW / 2 - M - 16
+        );
+        const summaryX = pageW / 2 + 12;
+        const summaryRows = [
+            ['SUBTOTAL', dokumenFormatRupiah(doc.subtotal)],
+            ['DISKON', doc.diskon ? ('- ' + dokumenFormatRupiah(doc.diskon)) : dokumenFormatRupiah(0)],
+            ['TOTAL TAGIHAN', dokumenFormatRupiah(doc.grand_total)],
+            ...(doc.termin === 'dp' ? [['TAGIHAN SAAT INI', dokumenFormatRupiah(doc.total_tagihan)]] : [])
+        ];
+        const infoH = Math.max(76, 42 + paymentLines.length * 12, 26 + summaryRows.length * 17);
+
+        if (y + infoH > pageH - 40) {
+            pdf.addPage();
+            y = 50;
+        }
+
+        pdf.setDrawColor(180, 190, 205);
+        pdf.setLineWidth(0.8);
+        pdf.line(M, y, pageW - M, y);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text('Informasi Pembayaran', M + 8, y + 17);
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(51, 65, 85);
+        pdf.text(paymentLines, M + 8, y + 42);
+
+        let summaryY = y + 13;
+        summaryRows.forEach(([label, value]) => {
+            summaryY += 17;
+            const isTotal = label === 'TOTAL TAGIHAN' || label === 'TAGIHAN SAAT INI';
+            pdf.setFont('helvetica', isTotal ? 'bold' : 'normal');
+            pdf.setFontSize(isTotal ? 9 : 8.5);
+            pdf.setTextColor(71, 85, 105);
+            pdf.text(label, summaryX, summaryY);
+            pdf.text(value, pageW - M, summaryY, { align: 'right' });
+            pdf.setDrawColor(210, 215, 220);
+            pdf.setLineWidth(0.5);
+            pdf.line(summaryX, summaryY + 5, pageW - M, summaryY + 5);
+        });
+
+        y += infoH + 15;
+    }
 
     if (!isInvoice) {
         pdf.setFont('helvetica', 'bold');
